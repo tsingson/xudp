@@ -3,96 +3,97 @@
 
 package xudp
 
+import "net"
+
 const (
 	// This is the size of a standard UDP datagram header in bytes.
 	// It is part of every packet we send. This header is processed by the
 	// operating system's transport layer; we will therefore never see it.
 	// Note that this header counts towards the maximum size for a single
-	// UDP datagram (see: xudp.PacketSize)
+	// UDP datagram.
 	UDPHeaderSize = 22
 
-	// Minimum size for an XUDP header in bytes. This counts towards
-	// the maximum size for a single UDP datagram (see: xudp.PacketSize)
+	// Minimum size for an XUDP header in bytes. It is part of every
+	// packet we send and receive. This counts towards the maximum size for
+	// a single UDP datagram.
 	XUDPHeaderSize = 16
+
+	// Size of an address and port in bytes.
+	XUDPAddrSize = 20
 )
 
-var (
-	// Maximum size of individual packets in bytes. This value is initialized to
-	// the MTU (Maximum Transport Unit) of the host's primary network interface.
-	//
-	// Some commonly used values are as follows:
-	//
-	//     1500 - The largest Ethernet packet size. This is the typical setting for
-	//            non-PPPoE, non-VPN connections. The default value for NETGEAR
-	//            routers, adapters and switches.
-	//     1492 - The size PPPoE prefers.
-	//     1472 - Maximum size to use for pinging (Bigger packets are fragmented).
-	//     1468 - The size DHCP prefers.
-	//     1460 - Usable by AOL if you don't have large email attachments, etc.
-	//     1430 - The size VPN and PPTP prefer.
-	//     1400 - Maximum size for AOL DSL.
-	//      576 - Typical value to connect to dial-up ISPs.
-	PacketSize int
-)
+// A packet holds data for a single UDP datagram.
+// This includes a 16 byte sender address, a 4 byte port, our own XUDP header
+// and the payload.
+//
+// Note that the address and port are never sent/received.
+// We include it in a packet manually to make packet handling simpler.
+type Packet []byte
 
-func init() {
-	// Determine optimal PacketSize by finding the network interface MTU.
-	iface, err := findLocalInterface()
+// setAddr sets the address and port.
+func (p Packet) setAddr(addr *net.UDPAddr) {
+	copy(p, addr.IP.To16())
 
-	if err != nil {
+	port := addr.Port
+	p[16] = byte(port >> 24)
+	p[17] = byte(port >> 16)
+	p[18] = byte(port >> 8)
+	p[19] = byte(port)
+}
+
+// setHeader builds the packet header.
+// The packet must have a minimum size of XUDPAddrSize+XUDPHeaderSize.
+func (p Packet) setHeader(protocol, sequence, ack, ackvector uint32) {
+	if len(p) < XUDPAddrSize+XUDPHeaderSize {
 		return
 	}
 
-	PacketSize = iface.MTU
+	p[20] = byte(protocol >> 24)
+	p[21] = byte(protocol >> 16)
+	p[22] = byte(protocol >> 8)
+	p[23] = byte(protocol)
+
+	p[24] = byte(sequence >> 24)
+	p[25] = byte(sequence >> 16)
+	p[26] = byte(sequence >> 8)
+	p[27] = byte(sequence)
+
+	p[28] = byte(ack >> 24)
+	p[29] = byte(ack >> 16)
+	p[30] = byte(ack >> 8)
+	p[31] = byte(ack)
+
+	p[32] = byte(ackvector >> 24)
+	p[33] = byte(ackvector >> 16)
+	p[34] = byte(ackvector >> 8)
+	p[35] = byte(ackvector)
 }
 
-// A packet holds data for a single UDP datagram.
-// This includes our own XUDP header and the payload.
-type Packet []byte
+// Addr the 16 byte sender address.
+func (p Packet) Addr() []byte { return p[:16] }
 
-// newPacket builds a new packet with a header.
-func newPacket(protocol, sequence, ack, ackbits uint32) Packet {
-	p := make(Packet, XUDPHeaderSize)
-
-	p[0] = byte(protocol >> 24)
-	p[1] = byte(protocol >> 16)
-	p[2] = byte(protocol >> 8)
-	p[3] = byte(protocol)
-
-	p[4] = byte(sequence >> 24)
-	p[5] = byte(sequence >> 16)
-	p[6] = byte(sequence >> 8)
-	p[7] = byte(sequence)
-
-	p[8] = byte(ack >> 24)
-	p[9] = byte(ack >> 16)
-	p[10] = byte(ack >> 8)
-	p[11] = byte(ack)
-
-	p[12] = byte(ackbits >> 24)
-	p[13] = byte(ackbits >> 16)
-	p[14] = byte(ackbits >> 8)
-	p[15] = byte(ackbits)
-	return p
+// Addr the 4 byte port number.
+func (p Packet) Port() uint32 {
+	return uint32(p[16])<<24 | uint32(p[17])<<16 | uint32(p[18])<<8 | uint32(p[19])
 }
 
 // Protocol returns the 32 bit, unsigned protocol Id.
 func (p Packet) Protocol() uint32 {
-	return uint32(p[0])<<24 | uint32(p[1])<<16 | uint32(p[2])<<8 | uint32(p[3])
+	return uint32(p[20])<<24 | uint32(p[21])<<16 | uint32(p[22])<<8 | uint32(p[23])
 }
 
 // Sequence returns the 32 bit, unsigned sequence number for this packet.
 func (p Packet) Sequence() uint32 {
-	return uint32(p[4])<<24 | uint32(p[5])<<16 | uint32(p[6])<<8 | uint32(p[7])
+	return uint32(p[24])<<24 | uint32(p[25])<<16 | uint32(p[26])<<8 | uint32(p[27])
 }
 
 // Ack returns the 32 bit, unsigned sequence number for an acknowledged packet.
 // We incorporate this in the header, so ACKS can piggyback on regular data packets.
 func (p Packet) Ack() uint32 {
-	return uint32(p[8])<<24 | uint32(p[9])<<16 | uint32(p[10])<<8 | uint32(p[11])
+	return uint32(p[28])<<24 | uint32(p[29])<<16 | uint32(p[30])<<8 | uint32(p[31])
 }
 
-// AckBits returns a 32 bit, unsigned bitset for additional ACKs.
+// AckVector returns a 32 bit, unsigned bitset for additional ACKs.
 // This allows us to encode up to 33 simultaneous ACKs in a single packet,
 // using only one ACK sequence number and a 32 bit bitset.
 //
@@ -106,9 +107,9 @@ func (p Packet) Ack() uint32 {
 // 100th packet. We can ACK packets 99, 98, 97, ..., 68 in one go, by setting
 // each individual bit in this bitfield. If bit 1 is set, then we
 // ACK packet 99. Bit 2 ACKs packet 98, etc.
-func (p Packet) AckBits() uint32 {
-	return uint32(p[12])<<24 | uint32(p[13])<<16 | uint32(p[14])<<8 | uint32(p[15])
+func (p Packet) AckVector() uint32 {
+	return uint32(p[32])<<24 | uint32(p[33])<<16 | uint32(p[34])<<8 | uint32(p[35])
 }
 
 // Payload returns the packet data.
-func (p Packet) Payload() []byte { return p[XUDPHeaderSize:] }
+func (p Packet) Payload() []byte { return p[XUDPAddrSize+XUDPHeaderSize:] }

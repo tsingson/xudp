@@ -4,11 +4,17 @@
 package xudp
 
 import (
+	"fmt"
 	"testing"
 )
 
+const (
+	MTU        = 1400
+	ProtocolId = 'X'<<24 | 'U'<<16 | 'D'<<8 | 'P'
+)
+
 func TestSocket(t *testing.T) {
-	sock := NewSocket()
+	sock := newSocket(MTU, ProtocolId)
 
 	err := sock.Open(12345)
 
@@ -17,4 +23,17 @@ func TestSocket(t *testing.T) {
 	}
 
 	defer sock.Close()
+
+	recv := sock.Poll()
+
+	for {
+		select {
+		case packet := <-recv:
+			if packet == nil {
+				return
+			}
+
+			fmt.Printf("%v\n", packet)
+		}
+	}
 }

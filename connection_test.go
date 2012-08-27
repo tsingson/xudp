@@ -7,10 +7,8 @@ import (
 	"testing"
 )
 
-const ProtocolId = 'X'<<24 | 'U'<<16 | 'D'<<8 | 'P'
-
 func TestServer(t *testing.T) {
-	conn := NewConnection(ModeServer, ProtocolId)
+	conn := NewConnection(ModeServer, MTU, ProtocolId)
 	defer conn.Close()
 
 }
