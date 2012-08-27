@@ -8,7 +8,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	conn := NewConnection(ModeServer, MTU, ProtocolId)
+	conn := New(Server)
 	defer conn.Close()
 
 }

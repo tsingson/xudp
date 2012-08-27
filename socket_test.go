@@ -8,13 +8,8 @@ import (
 	"testing"
 )
 
-const (
-	MTU        = 1400
-	ProtocolId = 'X'<<24 | 'U'<<16 | 'D'<<8 | 'P'
-)
-
 func TestSocket(t *testing.T) {
-	sock := newSocket(MTU, ProtocolId)
+	sock := newSocket(1400, 0x12345678)
 
 	err := sock.Open(12345)
 

@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	ErrSocketOpen   = errors.New("socket is already open.")
-	ErrSocketClosed = errors.New("socket is already closed.")
+	ErrSocketOpen   = errors.New("Socket is already open.")
+	ErrSocketClosed = errors.New("Socket is already closed.")
+	ErrSendFailed   = errors.New("Send was incomplete.")
 )
 
 // socket handles low level UDP socket mechanics.
@@ -20,15 +21,15 @@ var (
 // For normal use cases, there is no need to use this type directly.
 // Refer to one of the higher level types instead.
 type socket struct {
-	udp        net.PacketConn // Sockets underlying connection.
-	protocolId uint32         // Protocol ID identifying our packets.
-	mtu        uint32         // Maximum transport unit.
+	udp   net.PacketConn // Sockets underlying connection.
+	proto uint32         // Protocol ID identifying our packets.
+	mtu   uint32         // Maximum transport unit.
 }
 
 // newSocket creates a new, uninitialized socket.
 func newSocket(mtu, protocolId uint32) *socket {
 	s := new(socket)
-	s.protocolId = protocolId
+	s.proto = protocolId
 	s.mtu = mtu
 	return s
 }
@@ -72,7 +73,16 @@ func (s *socket) Send(dest net.Addr, payload []byte) (err error) {
 		return ErrSocketClosed
 	}
 
-	_, err = s.udp.WriteTo(payload, dest)
+	sent, err := s.udp.WriteTo(payload, dest)
+
+	if err != nil {
+		return
+	}
+
+	if sent != len(payload) {
+		err = ErrSendFailed
+	}
+
 	return
 }
 
@@ -109,7 +119,7 @@ func (s *socket) Poll() <-chan Packet {
 				continue // Not enough data.
 			}
 
-			if packet.Protocol() != s.protocolId {
+			if packet.Protocol() != s.proto {
 				continue // Not meant for us.
 			}
 
