@@ -4,73 +4,93 @@
 package xudp
 
 import (
-	"io"
 	"log"
 	"net"
 	"testing"
+	"time"
 )
 
 const (
 	MTU        = 1400
 	ProtocolId = 0xBADBEEF
-	ServerPort = 12345
-	ClientPort = 54321
 )
 
-var serverAddr = &net.UDPAddr{
-	IP:   net.ParseIP("[::1]"),
-	Port: ServerPort,
+type TestConn struct {
+	*Connection
+	Addr  *net.UDPAddr
+	Name  string
+	Count uint64
 }
+
+var (
+	bob = &TestConn{
+		Connection: NewConnection(MTU, ProtocolId),
+		Name:       "bob",
+		Addr:       &net.UDPAddr{Port: 12345},
+	}
+
+	jane = &TestConn{
+		Connection: NewConnection(MTU, ProtocolId),
+		Name:       "jane",
+		Addr:       &net.UDPAddr{Port: 12346},
+	}
+)
 
 func TestConnection(t *testing.T) {
-	var err error
+	initConnections(t)
 
-	server := NewConnection(MTU, ProtocolId)
-	if err = server.Open(ServerPort); err != nil {
-		t.Errorf("server.Open: %v", err)
-		return
+	go echo(t, bob)
+	go echo(t, jane)
+
+	jane.Send(bob.Addr, NewPacket(nil))
+
+	for {
+		select {
+		case <-time.After(time.Second):
+			bob.Close()
+			jane.Close()
+
+			log.Printf("%s: %d", bob.Name, bob.Count)
+			log.Printf("%s: %d", jane.Name, jane.Count)
+			return
+		}
 	}
-
-	defer server.Close()
-
-	client := NewConnection(MTU, ProtocolId)
-	if err = client.Open(ClientPort); err != nil {
-		t.Errorf("client.Open: %v", err)
-		return
-	}
-
-	defer client.Close()
-
-	go echo(t, server)
-	go echo(t, client)
-
-	client.Send(serverAddr, []byte("Hello, server."))
 }
 
-func echo(t *testing.T, c *Connection) {
-	var addr *net.UDPAddr
-	var data []byte
+func echo(t *testing.T, c *TestConn) {
+	var sender net.Addr
+	var packet Packet
 	var err error
 
 	for {
-		addr, data, err = c.Recv()
-
+		sender, packet, err = c.Recv()
 		if err != nil {
-			if err == io.EOF {
-				continue
-			}
-
-			t.Errorf("Recv: %v", err)
 			return
 		}
 
-		log.Printf("%s: %v", addr, data)
+		c.Count++
 
-		err = c.Send(addr, data)
+		//log.Printf("%v", packet)
+		err = c.Send(sender, packet)
 
 		if err != nil {
-			t.Errorf("Send: %v", err)
+			t.Errorf("%s.Send: %v", c.Name, err)
 			return
 		}
+	}
+}
+
+func initConnections(t *testing.T) {
+	err := bob.Open(bob.Addr.Port)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = jane.Open(jane.Addr.Port)
+
+	if err != nil {
+		bob.Close()
+		t.Fatal(err)
 	}
 }
