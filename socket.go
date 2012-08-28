@@ -27,9 +27,9 @@ type socket struct {
 }
 
 // newSocket creates a new, uninitialized socket.
-func newSocket(mtu, protocolId uint32) *socket {
+func newSocket(mtu, proto uint32) *socket {
 	s := new(socket)
-	s.proto = protocolId
+	s.proto = proto
 	s.mtu = mtu
 	return s
 }
@@ -71,6 +71,12 @@ func (s *socket) Send(dest net.Addr, payload []byte) (err error) {
 
 	if s.udp == nil {
 		return ErrSocketClosed
+	}
+
+	max := s.mtu - UDPHeaderSize
+
+	if uint32(len(payload)) > max {
+		payload = payload[:max]
 	}
 
 	sent, err := s.udp.WriteTo(payload, dest)
