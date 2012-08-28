@@ -3,25 +3,15 @@
 
 package xudp
 
-// ConnectionMode defines the purpose of a given connection.
-type ConnectionMode uint8
-
-// Available connection modes.
-const (
-	Client ConnectionMode = iota
-	Server
+import (
+	"net"
 )
 
-type ConnectionHandler func(*Connection) error
-
 // A connection allows reliable, two-way communication with an end point.
-// It can be run as either a client or server.
+// It functions as both a client and server at the same time.
 type Connection struct {
-	sock    *socket           // The underlying UDP socket for this connection.
-	OnOpen  ConnectionHandler // Handler called when a connection is established.
-	OnClose ConnectionHandler // Handler called when the connection closes.
-	Timeout uint              // Timeout defines the connection timeout in seconds.
-	mode    ConnectionMode    // Connection mode: Server or client.
+	sock    *socket // The underlying UDP socket for this connection.
+	Timeout uint    // Timeout defines the connection timeout in seconds.
 }
 
 // New creates a new connection of the given type.
@@ -47,28 +37,21 @@ type Connection struct {
 //
 // The protocol Id is a numerical identifier for all the packets
 // sent and received by our program. It can be any number we want, but
-// it is advised to use something relatively unique. It basically means:
-// if an incoming packet does not start with this number, discard it
-// because it is not meant for us.
-func New(mode ConnectionMode, mtu, protocolId uint32) *Connection {
+// it is advised to use something relatively unique.
+// If an incoming packet does not start with this number, discard it
+// because it is not meant for us. A 4 byte hash of the name of your
+// program can be a suitable protocol ID.
+func New(mtu, protocolId uint32) *Connection {
 	c := new(Connection)
 	c.sock = newSocket(mtu, protocolId)
-	c.mode = mode
 	c.Timeout = 3
 	return c
 }
 
 // Open opens the connection on the given port.
-func (c *Connection) Open(port uint) (err error) {
-	if err = c.sock.Open(port); err != nil {
-		return
-	}
-
-	if c.OnOpen != nil {
-		err = c.OnOpen(c)
-	}
-
-	return
+// The port defines the port on which we listen for incoming connections.
+func (c *Connection) Open(port int) (err error) {
+	return c.sock.Open(port)
 }
 
 // Close closes the connection.
@@ -76,17 +59,15 @@ func (c *Connection) Close() (err error) {
 	if c.sock != nil {
 		err = c.sock.Close()
 		c.sock = nil
-
-		if err != nil {
-			return
-		}
 	}
+	return
+}
 
-	if c.OnClose != nil {
-		err = c.OnClose(c)
-	}
+// Send sends the given payload to the specified end point.
+//
+// The size of the data may exceed the maximum packet size.
+// This routine will automatically use packet fragmentation in this case.
+func (c *Connection) Send(endpoint *net.UDPAddr, data []byte) (err error) {
 
-	c.OnClose = nil
-	c.OnOpen = nil
 	return
 }

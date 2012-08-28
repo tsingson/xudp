@@ -28,10 +28,10 @@ const (
 //
 // Note that the address and port are never sent/received.
 // We include it in a packet manually to make packet handling simpler.
-type Packet []byte
+type packet []byte
 
 // setAddr sets the address and port.
-func (p Packet) setAddr(addr *net.UDPAddr) {
+func (p packet) setAddr(addr *net.UDPAddr) {
 	copy(p, addr.IP.To16())
 
 	port := addr.Port
@@ -43,7 +43,7 @@ func (p Packet) setAddr(addr *net.UDPAddr) {
 
 // setHeader builds the packet header.
 // The packet must have a minimum size of XUDPAddrSize+XUDPHeaderSize.
-func (p Packet) setHeader(protocol, sequence, ack, ackvector uint32) {
+func (p packet) setHeader(protocol, sequence, ack, ackvector uint32) {
 	if len(p) < XUDPAddrSize+XUDPHeaderSize {
 		return
 	}
@@ -69,27 +69,27 @@ func (p Packet) setHeader(protocol, sequence, ack, ackvector uint32) {
 	p[35] = byte(ackvector)
 }
 
-// Addr the 16 byte sender address.
-func (p Packet) Addr() []byte { return p[:16] }
-
-// Addr the 4 byte port number.
-func (p Packet) Port() uint32 {
-	return uint32(p[16])<<24 | uint32(p[17])<<16 | uint32(p[18])<<8 | uint32(p[19])
+// Addr returns the sender's address and port.
+func (p packet) Addr() *net.UDPAddr {
+	a := new(net.UDPAddr)
+	a.IP = net.IP(p[:16])
+	a.Port = int(p[16])<<24 | int(p[17])<<16 | int(p[18])<<8 | int(p[19])
+	return a
 }
 
 // Protocol returns the 32 bit, unsigned protocol Id.
-func (p Packet) Protocol() uint32 {
+func (p packet) Protocol() uint32 {
 	return uint32(p[20])<<24 | uint32(p[21])<<16 | uint32(p[22])<<8 | uint32(p[23])
 }
 
 // Sequence returns the 32 bit, unsigned sequence number for this packet.
-func (p Packet) Sequence() uint32 {
+func (p packet) Sequence() uint32 {
 	return uint32(p[24])<<24 | uint32(p[25])<<16 | uint32(p[26])<<8 | uint32(p[27])
 }
 
 // Ack returns the 32 bit, unsigned sequence number for an acknowledged packet.
 // We incorporate this in the header, so ACKS can piggyback on regular data packets.
-func (p Packet) Ack() uint32 {
+func (p packet) Ack() uint32 {
 	return uint32(p[28])<<24 | uint32(p[29])<<16 | uint32(p[30])<<8 | uint32(p[31])
 }
 
@@ -107,9 +107,9 @@ func (p Packet) Ack() uint32 {
 // 100th packet. We can ACK packets 99, 98, 97, ..., 68 in one go, by setting
 // each individual bit in this bitfield. If bit 1 is set, then we
 // ACK packet 99. Bit 2 ACKs packet 98, etc.
-func (p Packet) AckVector() uint32 {
+func (p packet) AckVector() uint32 {
 	return uint32(p[32])<<24 | uint32(p[33])<<16 | uint32(p[34])<<8 | uint32(p[35])
 }
 
 // Payload returns the packet data.
-func (p Packet) Payload() []byte { return p[XUDPAddrSize+XUDPHeaderSize:] }
+func (p packet) Payload() []byte { return p[XUDPAddrSize+XUDPHeaderSize:] }

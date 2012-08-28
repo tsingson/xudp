@@ -35,7 +35,7 @@ func newSocket(mtu, proto uint32) *socket {
 }
 
 // Open opens the socket on the given port number.
-func (s *socket) Open(port uint) (err error) {
+func (s *socket) Open(port int) (err error) {
 	if s.udp != nil {
 		return ErrSocketOpen
 	}
@@ -99,8 +99,8 @@ func (s *socket) Send(dest net.Addr, payload []byte) (err error) {
 // It is up to the caller to create a copy of the data when needed.
 //
 // It yields only those packets that match the socket's protocol Id.
-func (s *socket) Poll() <-chan Packet {
-	c := make(chan Packet)
+func (s *socket) Poll() <-chan packet {
+	c := make(chan packet)
 
 	go func() {
 		var addr net.Addr
@@ -109,14 +109,14 @@ func (s *socket) Poll() <-chan Packet {
 
 		defer close(c)
 
-		packet := make(Packet, (s.mtu-UDPHeaderSize)+XUDPAddrSize)
+		p := make(packet, (s.mtu-UDPHeaderSize)+XUDPAddrSize)
 
 		for {
 			if s.udp == nil {
 				return
 			}
 
-			size, addr, err = s.udp.ReadFrom(packet[XUDPAddrSize:])
+			size, addr, err = s.udp.ReadFrom(p[XUDPAddrSize:])
 			if err != nil {
 				return
 			}
@@ -125,12 +125,12 @@ func (s *socket) Poll() <-chan Packet {
 				continue // Not enough data.
 			}
 
-			if packet.Protocol() != s.proto {
+			if p.Protocol() != s.proto {
 				continue // Not meant for us.
 			}
 
-			packet.setAddr(addr.(*net.UDPAddr))
-			c <- packet[:XUDPAddrSize+size]
+			p.setAddr(addr.(*net.UDPAddr))
+			c <- p[:XUDPAddrSize+size]
 		}
 	}()
 

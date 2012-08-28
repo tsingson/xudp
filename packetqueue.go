@@ -4,7 +4,7 @@
 package xudp
 
 // packetQueue holds a list of packets, sorted by sequence number.
-type packetQueue []Packet
+type packetQueue []packet
 
 func (q packetQueue) Exists(seq uint32) bool {
 	for _, p := range q {
@@ -18,7 +18,7 @@ func (q packetQueue) Exists(seq uint32) bool {
 
 // Insert inserts the given packet into the queue.
 // This guarantees the packets remain sorted by sequence number.
-func (q *packetQueue) Insert(p Packet, maxSequence uint32) {
+func (q *packetQueue) Insert(p packet, maxSequence uint32) {
 	if len(*q) == 0 {
 		*q = append(*q, p)
 		return

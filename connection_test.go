@@ -9,17 +9,26 @@ import (
 
 const (
 	MTU        = 1400
-	ProtocolId = 0x12345678
-	Port       = 12345
+	ProtocolId = 0xBADBEEF
+	ServerPort = 12345
+	ClientPort = 54321
 )
 
-func TestServer(t *testing.T) {
-	conn := New(Server, MTU, ProtocolId)
-	err := conn.Open(Port)
+func TestConnection(t *testing.T) {
+	var err error
 
-	if err != nil {
+	server := New(MTU, ProtocolId)
+	client := New(MTU, ProtocolId)
+
+	if err = server.Open(ServerPort); err != nil {
 		t.Fatal(err)
 	}
 
-	defer conn.Close()
+	defer server.Close()
+
+	if err = client.Open(ClientPort); err != nil {
+		t.Fatal(err)
+	}
+
+	defer client.Close()
 }
