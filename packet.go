@@ -30,8 +30,12 @@ const (
 // We include it in a packet manually to make packet handling simpler.
 type packet []byte
 
+// NewPacket creates an empty packet with enough space to hold
+// the necessary headers and address data.
+func NewPacket() packet { return make(packet, XUDPAddrSize+XUDPHeaderSize) }
+
 // setAddr sets the address and port.
-func (p packet) setAddr(addr *net.UDPAddr) {
+func (p packet) SetAddr(addr *net.UDPAddr) {
 	copy(p, addr.IP.To16())
 
 	port := addr.Port
@@ -43,7 +47,7 @@ func (p packet) setAddr(addr *net.UDPAddr) {
 
 // setHeader builds the packet header.
 // The packet must have a minimum size of XUDPAddrSize+XUDPHeaderSize.
-func (p packet) setHeader(protocol, sequence, ack, ackvector uint32) {
+func (p packet) SetHeader(protocol, sequence, ack, ackvector uint32) {
 	if len(p) < XUDPAddrSize+XUDPHeaderSize {
 		return
 	}

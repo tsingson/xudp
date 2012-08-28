@@ -4,17 +4,19 @@
 package xudp
 
 import (
+	"io"
 	"net"
 )
 
-// A connection allows reliable, two-way communication with an end point.
+// A connection allows two-way communication with an end point.
 // It functions as both a client and server at the same time.
+// It does not deal with dropped packet retransmission.
 type Connection struct {
 	sock    *socket // The underlying UDP socket for this connection.
 	Timeout uint    // Timeout defines the connection timeout in seconds.
 }
 
-// New creates a new connection of the given type.
+// NewConnection creates a new connection.
 //
 // MTU defines the maximum size of a single packet in bytes.
 // This includes the UDP and XUDP headers.
@@ -40,8 +42,8 @@ type Connection struct {
 // it is advised to use something relatively unique.
 // If an incoming packet does not start with this number, discard it
 // because it is not meant for us. A 4 byte hash of the name of your
-// program can be a suitable protocol ID.
-func New(mtu, protocolId uint32) *Connection {
+// program can be a suitable protocol Id.
+func NewConnection(mtu, protocolId uint32) *Connection {
 	c := new(Connection)
 	c.sock = newSocket(mtu, protocolId)
 	c.Timeout = 3
@@ -63,11 +65,33 @@ func (c *Connection) Close() (err error) {
 	return
 }
 
-// Send sends the given payload to the specified end point.
+// Send sends the given packet.
 //
-// The size of the data may exceed the maximum packet size.
-// This routine will automatically use packet fragmentation in this case.
-func (c *Connection) Send(endpoint *net.UDPAddr, data []byte) (err error) {
+// This does not handle packet fragmentation.
+// Use a ReliableConnection for that purpose.
+func (c *Connection) Send(addr *net.UDPAddr, data []byte) (err error) {
+	if c.sock == nil {
+		return ErrSocketClosed
+	}
 
 	return
+}
+
+// Recv receives the next incoming payload if one is available.
+// It returns io.EOF if none is available. This is a non-blocking operation. 
+//
+// This does not handle fragmented packets.
+// Use a ReliableConnection for that purpose.
+func (c *Connection) Recv() (addr *net.UDPAddr, data []byte, err error) {
+	if c.sock == nil {
+		return nil, nil, ErrSocketClosed
+	}
+
+	packet, ok := <-c.sock.Recv
+
+	if !ok {
+		return nil, nil, io.EOF
+	}
+
+	return packet.Addr(), packet.Payload(), nil
 }

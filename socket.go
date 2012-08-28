@@ -17,10 +17,8 @@ var (
 )
 
 // socket handles low level UDP socket mechanics.
-//
-// For normal use cases, there is no need to use this type directly.
-// Refer to one of the higher level types instead.
 type socket struct {
+	Recv  chan packet    // Channel for incoming packets.
 	udp   net.PacketConn // Sockets underlying connection.
 	proto uint32         // Protocol ID identifying our packets.
 	mtu   uint32         // Maximum transport unit.
@@ -31,6 +29,7 @@ func newSocket(mtu, proto uint32) *socket {
 	s := new(socket)
 	s.proto = proto
 	s.mtu = mtu
+	s.Recv = make(chan packet)
 	return s
 }
 
@@ -49,11 +48,15 @@ func (s *socket) Open(port int) (err error) {
 	zero := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
 	s.udp.SetReadDeadline(zero)
 	s.udp.SetWriteDeadline(zero)
+
+	go s.poll()
 	return
 }
 
 // Close closes the socket.
 func (s *socket) Close() (err error) {
+	close(s.Recv)
+
 	if s.udp == nil {
 		return ErrSocketClosed
 	}
@@ -92,49 +95,34 @@ func (s *socket) Send(dest net.Addr, payload []byte) (err error) {
 	return
 }
 
-// Poll returns a channel on which new packets are received.
-//
-// The received packet data refers to the socket's internal buffer
-// and will only remain valid until the next packet is received.
-// It is up to the caller to create a copy of the data when needed.
-//
-// It yields only those packets that match the socket's protocol Id.
-func (s *socket) Poll() <-chan packet {
-	c := make(chan packet)
+// poll checks for incoming data.
+func (s *socket) poll() {
+	buf := make(packet, (s.mtu-UDPHeaderSize)+XUDPAddrSize)
 
-	go func() {
-		var addr net.Addr
-		var err error
-		var size int
-
-		defer close(c)
-
-		p := make(packet, (s.mtu-UDPHeaderSize)+XUDPAddrSize)
-
-		for {
-			if s.udp == nil {
-				return
-			}
-
-			size, addr, err = s.udp.ReadFrom(p[XUDPAddrSize:])
-			if err != nil {
-				return
-			}
-
-			if size < XUDPHeaderSize {
-				continue // Not enough data.
-			}
-
-			if p.Protocol() != s.proto {
-				continue // Not meant for us.
-			}
-
-			p.setAddr(addr.(*net.UDPAddr))
-			c <- p[:XUDPAddrSize+size]
+	for {
+		if s.udp == nil {
+			return
 		}
-	}()
 
-	return c
+		size, addr, err := s.udp.ReadFrom(buf[XUDPAddrSize:])
+		if err != nil {
+			return
+		}
+
+		if size < XUDPHeaderSize {
+			continue // Not enough data.
+		}
+
+		if buf.Protocol() != s.proto {
+			continue // Not meant for us.
+		}
+
+		p := make(packet, XUDPAddrSize+size)
+		p.SetAddr(addr.(*net.UDPAddr))
+		copy(p[XUDPAddrSize:], buf[XUDPAddrSize:])
+
+		s.Recv <- p
+	}
 }
 
 // IsOpen returns true if the connection is currently open.

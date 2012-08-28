@@ -4,12 +4,10 @@
 /*
 XUDP offers an API for extended UDP networking.
 
-The point of this API is to offer persistent, reliable* two-way communication
+The point of this API is to offer persistent, reliable two-way communication
 without the overhead imposed by the TCP protocol. This makes it particularly
-useful for high performance environments like multiplayer video games.
-
-*) By reliable, we mean a different kind of reliability from TCP by
-guaranteeing high throughput for time sensitive data.
+useful for environments like multiplayer video games, where low latency and is
+fast transfer of time sensitive data is of paramount importance.
 
 Features include:
 
