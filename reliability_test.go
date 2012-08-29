@@ -79,3 +79,150 @@ func TestAckVectorWrapped(t *testing.T) {
 		}
 	}
 }
+
+func TestProcessAck1(t *testing.T) {
+	r := NewReliability()
+
+	for i := 0; i < 33; i++ {
+		r.pendingAckQueue.Insert(packetData{sequence: uint32(i)})
+	}
+
+	r.RTT = 0
+	r.AckedPackets = 0
+	r.ProcessAck(32, 0xffffffff)
+
+	if len(r.acks) != 33 {
+		t.Fatalf("acks size mismatch: Want 33, got %d", len(r.acks))
+	}
+
+	if r.AckedPackets != 33 {
+		t.Fatalf("AckedPackets mismatch: Want 33, got %d", r.AckedPackets)
+	}
+
+	if len(r.ackedQueue) != 33 {
+		t.Fatalf("ackedQueue size mismatch: Want 33, got %d", len(r.ackedQueue))
+	}
+
+	if len(r.pendingAckQueue) != 0 {
+		t.Fatalf("pendingAckQueue size mismatch: Want 0, got %d", len(r.pendingAckQueue))
+	}
+
+	if !isQueueSorted(r.ackedQueue) {
+		t.Fatalf("ackedQueueis not sorted.")
+	}
+
+	for i := range r.acks {
+		if r.acks[i] != uint32(i) {
+			t.Fatalf("ack %d mismatch.", i)
+		}
+	}
+
+	for i := range r.ackedQueue {
+		if r.ackedQueue[i].sequence != uint32(i) {
+			t.Fatalf("ackedQueue %d mismatch.", i)
+		}
+	}
+}
+
+func TestProcessAck2(t *testing.T) {
+	r := NewReliability()
+
+	for i := 0; i < 33; i++ {
+		r.pendingAckQueue.Insert(packetData{sequence: uint32(i)})
+	}
+
+	r.RTT = 0
+	r.AckedPackets = 0
+	r.ProcessAck(32, 0x0000ffff)
+
+	n := 17
+	if len(r.acks) != n {
+		t.Fatalf("acks size mismatch: Want %d, got %d", n, len(r.acks))
+	}
+
+	if r.AckedPackets != uint64(n) {
+		t.Fatalf("AckedPackets mismatch: Want %d, got %d", n, r.AckedPackets)
+	}
+
+	if len(r.ackedQueue) != n {
+		t.Fatalf("ackedQueue size mismatch: Want %d, got %d", n, len(r.ackedQueue))
+	}
+
+	n = 33 - 17
+	if len(r.pendingAckQueue) != n {
+		t.Fatalf("pendingAckQueue size mismatch: Want %d, got %d", n, len(r.pendingAckQueue))
+	}
+
+	if !isQueueSorted(r.ackedQueue) {
+		t.Fatalf("ackedQueueis not sorted.")
+	}
+
+	for i := range r.pendingAckQueue {
+		if r.pendingAckQueue[i].sequence != uint32(i) {
+			t.Fatalf("pendingAckQueue %d mismatch.", i)
+		}
+	}
+
+	for i := range r.ackedQueue {
+		if r.ackedQueue[i].sequence != uint32(i)+16 {
+			t.Fatalf("ackedQueue %d mismatch.", i)
+		}
+	}
+
+	for i := range r.acks {
+		if r.acks[i] != uint32(i)+16 {
+			t.Fatalf("ack %d mismatch.", i)
+		}
+	}
+}
+
+func TestProcessAck3(t *testing.T) {
+	r := NewReliability()
+
+	for i := 0; i < 32; i++ {
+		r.pendingAckQueue.Insert(packetData{sequence: uint32(i)})
+	}
+
+	r.RTT = 0
+	r.AckedPackets = 0
+	r.ProcessAck(48, 0xffff0000)
+
+	n := 16
+	if len(r.acks) != n {
+		t.Fatalf("acks size mismatch: Want %d, got %d", n, len(r.acks))
+	}
+
+	if r.AckedPackets != uint64(n) {
+		t.Fatalf("AckedPackets mismatch: Want %d, got %d", n, r.AckedPackets)
+	}
+
+	if len(r.ackedQueue) != n {
+		t.Fatalf("ackedQueue size mismatch: Want %d, got %d", n, len(r.ackedQueue))
+	}
+
+	if len(r.pendingAckQueue) != n {
+		t.Fatalf("pendingAckQueue size mismatch: Want %d, got %d", n, len(r.pendingAckQueue))
+	}
+
+	if !isQueueSorted(r.ackedQueue) {
+		t.Fatalf("ackedQueueis not sorted.")
+	}
+
+	for i := range r.pendingAckQueue {
+		if r.pendingAckQueue[i].sequence != uint32(i) {
+			t.Fatalf("pendingAckQueue %d mismatch.", i)
+		}
+	}
+
+	for i := range r.ackedQueue {
+		if r.ackedQueue[i].sequence != uint32(i)+16 {
+			t.Fatalf("ackedQueue %d mismatch.", i)
+		}
+	}
+
+	for i := range r.acks {
+		if r.acks[i] != uint32(i)+16 {
+			t.Fatalf("ack %d mismatch.", i)
+		}
+	}
+}
