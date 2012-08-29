@@ -127,5 +127,7 @@ func (c *Connection) Recv() (addr net.Addr, packet Packet, err error) {
 
 	packet = make(Packet, size)
 	copy(packet, c.buf)
+
+	c.PacketRecv(packet.Sequence(), packet.Ack(), packet.AckVector(), uint32(size))
 	return
 }

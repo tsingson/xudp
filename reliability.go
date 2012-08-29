@@ -32,6 +32,8 @@ type Reliability struct {
 	acks            []uint32    // ACK'ed packets from last set of packet receives.
 	SentPackets     uint64      // Number of packets sent.
 	RecvPackets     uint64      // Number of packets received.
+	SentBytes       uint64      // Number of bytes sent.
+	RecvBytes       uint64      // Number of bytes received.
 	LostPackets     uint64      // Number of packets lost.
 	AckedPackets    uint64      // Number of packets ACK'ed.
 	LocalSequence   uint32      // Local sequence number for most recently sent packet.
@@ -59,11 +61,14 @@ func (r *Reliability) PacketSent(size int) {
 	r.pendingAckQueue = append(r.pendingAckQueue, pd)
 	r.SentPackets++
 	r.LocalSequence++
+	r.SentBytes += uint64(size)
 }
 
 // PacketRecv is called whenever a new packet is received.
-func (r *Reliability) PacketRecv(sequence uint32, size int) {
+func (r *Reliability) PacketRecv(sequence, ack, vector, size uint32) {
+	defer r.processAck(ack, vector)
 	r.RecvPackets++
+	r.RecvBytes += uint64(size)
 
 	if r.recvQueue.Exists(sequence) {
 		return
@@ -71,7 +76,7 @@ func (r *Reliability) PacketRecv(sequence uint32, size int) {
 
 	r.recvQueue = append(r.recvQueue, packetData{
 		sequence: sequence,
-		size:     uint32(size),
+		size:     size,
 	})
 
 	if isMoreRecent(sequence, r.RemoteSequence) {
@@ -101,8 +106,8 @@ func (r *Reliability) AckVector() uint32 {
 	return vector
 }
 
-// ProcessAck handles a single incoming ACK with ACK vector.
-func (r *Reliability) ProcessAck(ack, vector uint32) {
+// processAck handles a single incoming ACK with ACK vector.
+func (r *Reliability) processAck(ack, vector uint32) {
 	if len(r.pendingAckQueue) == 0 {
 		return
 	}
@@ -139,8 +144,16 @@ func (r *Reliability) ProcessAck(ack, vector uint32) {
 	}
 }
 
+// Update takes frame time delta and updates packet timeouts with it.
+func (r *Reliability) Update(delta float32) {
+	r.acks = r.acks[:0]
+	r.advanceQueueTime(delta)
+	r.updateQueues()
+	r.updateStats()
+}
+
 // AdvanceQueueTime updates the timestamp for each queued packet.
-func (r *Reliability) AdvanceQueueTime(delta float32) {
+func (r *Reliability) advanceQueueTime(delta float32) {
 	var i int
 
 	for i = range r.sentQueue {
@@ -160,9 +173,9 @@ func (r *Reliability) AdvanceQueueTime(delta float32) {
 	}
 }
 
-// UpdateQueues updates all queues to discard packets that have
+// updateQueues updates all queues to discard packets that have
 // exceeded their timeouts or are otherwise no longer necessary.
-func (r *Reliability) UpdateQueues() {
+func (r *Reliability) updateQueues() {
 	const epsilon = 0.001
 
 	if len(r.recvQueue) > 0 {
@@ -175,8 +188,7 @@ func (r *Reliability) UpdateQueues() {
 			minSeq = MaxSequence - (34 - lastSeq)
 		}
 
-		for len(r.recvQueue) > 0 &&
-			isMoreRecent(minSeq, r.recvQueue[0].sequence) {
+		for len(r.recvQueue) > 0 && isMoreRecent(minSeq, r.recvQueue[0].sequence) {
 			r.recvQueue = r.recvQueue[1:]
 		}
 	}
@@ -197,8 +209,8 @@ func (r *Reliability) UpdateQueues() {
 	}
 }
 
-// UpdateStats updates bandwidth and timing statistics.
-func (r *Reliability) UpdateStats() {
+// updateStats updates bandwidth and timing statistics.
+func (r *Reliability) updateStats() {
 	var ackedBytesPerSec float32
 	var sentBytesPerSec float32
 	var pd packetData
@@ -224,6 +236,7 @@ func (r *Reliability) UpdateStats() {
 
 // Reset sets the Reliability system to its initial state.
 func (r *Reliability) Reset() {
+	r.acks = r.acks[:0]
 	r.sentQueue = r.sentQueue[:0]
 	r.recvQueue = r.recvQueue[:0]
 	r.pendingAckQueue = r.pendingAckQueue[:0]

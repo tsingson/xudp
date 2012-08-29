@@ -80,7 +80,7 @@ func TestAckVectorWrapped(t *testing.T) {
 	}
 }
 
-func TestProcessAck1(t *testing.T) {
+func TestprocessAck1(t *testing.T) {
 	r := NewReliability()
 
 	for i := 0; i < 33; i++ {
@@ -89,7 +89,7 @@ func TestProcessAck1(t *testing.T) {
 
 	r.RTT = 0
 	r.AckedPackets = 0
-	r.ProcessAck(32, 0xffffffff)
+	r.processAck(32, 0xffffffff)
 
 	if len(r.acks) != 33 {
 		t.Fatalf("acks size mismatch: Want 33, got %d", len(r.acks))
@@ -124,7 +124,7 @@ func TestProcessAck1(t *testing.T) {
 	}
 }
 
-func TestProcessAck2(t *testing.T) {
+func TestprocessAck2(t *testing.T) {
 	r := NewReliability()
 
 	for i := 0; i < 33; i++ {
@@ -133,7 +133,7 @@ func TestProcessAck2(t *testing.T) {
 
 	r.RTT = 0
 	r.AckedPackets = 0
-	r.ProcessAck(32, 0x0000ffff)
+	r.processAck(32, 0x0000ffff)
 
 	n := 17
 	if len(r.acks) != n {
@@ -176,7 +176,7 @@ func TestProcessAck2(t *testing.T) {
 	}
 }
 
-func TestProcessAck3(t *testing.T) {
+func TestprocessAck3(t *testing.T) {
 	r := NewReliability()
 
 	for i := 0; i < 32; i++ {
@@ -185,7 +185,7 @@ func TestProcessAck3(t *testing.T) {
 
 	r.RTT = 0
 	r.AckedPackets = 0
-	r.ProcessAck(48, 0xffff0000)
+	r.processAck(48, 0xffff0000)
 
 	n := 16
 	if len(r.acks) != n {

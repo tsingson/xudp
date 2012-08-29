@@ -4,6 +4,7 @@
 package xudp
 
 import (
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -41,36 +42,52 @@ func TestConnection(t *testing.T) {
 	go echo(t, bob)
 	go echo(t, jane)
 
-	jane.Send(bob.Addr, NewPacket(nil))
+	jane.Send(bob.Addr, NewPacket([]byte("Hi")))
 
 	for {
 		select {
-		case <-time.After(time.Microsecond * 10):
+		case <-time.After(time.Second * 5):
 			bob.Close()
 			jane.Close()
+			stat(bob)
+			stat(jane)
 			return
 		}
 	}
 }
 
+func stat(c *TestConn) {
+	fmt.Printf("Sent: %d, Recv: %d, ACK: %d, Lost: %d, RX: %f, AX: %f, RTT: %f\n",
+		c.SentPackets, c.RecvPackets, c.AckedPackets, c.LostPackets,
+		c.SentBandwidth, c.AckedBandwidth, c.RTT)
+}
+
 func echo(t *testing.T, c *TestConn) {
+	const delta = 1.0 / 30.0
+
 	var sender net.Addr
 	var packet Packet
 	var err error
 
+	tick := time.NewTicker(time.Second / 30)
+
 	for {
-		sender, packet, err = c.Recv()
-		if err != nil {
-			return
-		}
+		select {
+		case <-tick.C:
+			c.Update(delta)
 
-		c.Count++
+			sender, packet, err = c.Recv()
+			if err != nil {
+				return
+			}
 
-		_, err = c.Send(sender, packet)
+			c.Count++
 
-		if err != nil {
-			t.Errorf("%s.Send: %v", c.Name, err)
-			return
+			_, err = c.Send(sender, packet)
+
+			if err != nil {
+				return
+			}
 		}
 	}
 }
