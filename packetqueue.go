@@ -5,8 +5,8 @@ package xudp
 
 type packetData struct {
 	sequence uint32
+	size     uint32
 	time     float32
-	size     uint
 }
 
 // packetQueue holds a list of packets, sorted by sequence number.

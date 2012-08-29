@@ -49,10 +49,10 @@ func NewReliability() *Reliability {
 }
 
 // PacketSent is called whenever a new packet is sent.
-func (r *Reliability) PacketSent(size uint) {
+func (r *Reliability) PacketSent(size int) {
 	var pd packetData
 	pd.sequence = r.LocalSequence
-	pd.size = size
+	pd.size = uint32(size)
 
 	r.sentQueue = append(r.sentQueue, pd)
 	r.pendingAckQueue = append(r.pendingAckQueue, pd)
@@ -61,7 +61,7 @@ func (r *Reliability) PacketSent(size uint) {
 }
 
 // PacketRecv is called whenever a new packet is received.
-func (r *Reliability) PacketRecv(sequence uint32, size uint) {
+func (r *Reliability) PacketRecv(sequence uint32, size int) {
 	r.RecvPackets++
 
 	if r.recvQueue.Exists(sequence) {
@@ -70,7 +70,7 @@ func (r *Reliability) PacketRecv(sequence uint32, size uint) {
 
 	r.recvQueue = append(r.recvQueue, packetData{
 		sequence: sequence,
-		size:     size,
+		size:     uint32(size),
 	})
 
 	if isMoreRecent(sequence, r.RemoteSequence) {
@@ -164,15 +164,9 @@ func (r *Reliability) AdvanceQueueTime(delta float32) {
 func (r *Reliability) UpdateQueues() {
 	const epsilon = 0.001
 
-	threshold := r.RTTMax + epsilon
-
-	for len(r.sentQueue) > 0 && r.sentQueue[0].time > threshold {
-		r.sentQueue = r.sentQueue[1:]
-	}
-
-	if sz := len(r.recvQueue); sz > 0 {
+	if len(r.recvQueue) > 0 {
 		var minSeq uint32
-		lastSeq := r.recvQueue[sz-1].sequence
+		lastSeq := r.recvQueue[len(r.recvQueue)-1].sequence
 
 		if lastSeq >= 34 {
 			minSeq = lastSeq - 34
@@ -184,6 +178,46 @@ func (r *Reliability) UpdateQueues() {
 			r.recvQueue = r.recvQueue[1:]
 		}
 	}
+
+	threshold := r.RTTMax + epsilon
+	for len(r.sentQueue) > 0 && r.sentQueue[0].time > threshold {
+		r.sentQueue = r.sentQueue[1:]
+	}
+
+	for len(r.pendingAckQueue) > 0 && r.pendingAckQueue[0].time > threshold {
+		r.pendingAckQueue = r.pendingAckQueue[1:]
+		r.LostPackets++
+	}
+
+	threshold = r.RTTMax*2 - epsilon
+	for len(r.ackedQueue) > 0 && r.ackedQueue[0].time > threshold {
+		r.ackedQueue = r.ackedQueue[1:]
+	}
+}
+
+// UpdateStats updates bandwidth and timing statistics.
+func (r *Reliability) UpdateStats() {
+	var ackedBytesPerSec float32
+	var sentBytesPerSec float32
+	var pd packetData
+
+	rm := r.RTTMax
+
+	for _, pd = range r.sentQueue {
+		sentBytesPerSec += float32(pd.size)
+	}
+
+	for _, pd = range r.ackedQueue {
+		if pd.time >= rm {
+			ackedBytesPerSec += float32(pd.size)
+		}
+	}
+
+	sentBytesPerSec /= rm
+	ackedBytesPerSec /= rm
+
+	r.SentBandwidth = sentBytesPerSec * (8 / 1000.0)
+	r.AckedBandwidth = ackedBytesPerSec * (8 / 1000.0)
 }
 
 // Reset sets the Reliability system to its initial state.

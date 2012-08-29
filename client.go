@@ -5,12 +5,12 @@ package xudp
 
 // Client represents a single client connection.
 type Client struct {
-	*ReliableConnection
+	*Connection
 }
 
 // NewClient creates a new, uninitialized client.
 func NewClient(mtu, protocolId uint32) *Client {
 	c := new(Client)
-	c.ReliableConnection = NewReliableConnection(mtu, protocolId)
+	c.Connection = NewConnection(mtu, protocolId)
 	return c
 }

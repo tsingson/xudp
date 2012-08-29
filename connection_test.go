@@ -66,7 +66,7 @@ func echo(t *testing.T, c *TestConn) {
 
 		c.Count++
 
-		err = c.Send(sender, packet)
+		_, err = c.Send(sender, packet)
 
 		if err != nil {
 			t.Errorf("%s.Send: %v", c.Name, err)

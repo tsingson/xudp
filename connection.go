@@ -13,18 +13,15 @@ import (
 var (
 	ErrConnectionOpen   = errors.New("Connection is already open.")
 	ErrConnectionClosed = errors.New("Connection is already closed.")
-	ErrSendFailed       = errors.New("Send was incomplete.")
+	ErrPacketSize       = errors.New("Packet size exceeds MTU.")
 )
 
-// A connection allows simple, two-way communication with an end point.
-// It functions as both a client and server at the same time.
-// It does not deal with dropped packet retransmission, nor does it
-// keep track of which clients connected.
+// A connection allows reliable, two-way communication with an end point.
 type Connection struct {
+	*Reliability
 	buf   Packet         // Temporary receive buffer.
 	udp   net.PacketConn // Sockets underlying connection.
 	proto uint32         // Protocol ID identifying our packets.
-	mtu   uint32         // Maximum transport unit.
 }
 
 // NewConnection creates a new connection.
@@ -51,14 +48,14 @@ type Connection struct {
 // The protocol Id is a numerical identifier for all the packets
 // sent and received by our program. It can be any number we want, but
 // it is advised to use something relatively unique.
-// If an incoming packet does not start with this number, discard it
+// If an incoming packet does not start with this number, we discard it
 // because it is not meant for us. A 4 byte hash of the name of your
 // program can be a suitable protocol Id.
 func NewConnection(mtu, protocolId uint32) *Connection {
 	c := new(Connection)
+	c.Reliability = NewReliability()
 	c.proto = protocolId
-	c.mtu = mtu
-	c.buf = make(Packet, c.mtu-UDPHeaderSize)
+	c.buf = make(Packet, mtu-UDPHeaderSize)
 	return c
 }
 
@@ -92,27 +89,24 @@ func (c *Connection) Close() (err error) {
 }
 
 // Send sends the given packet to the specified destination.
-func (c *Connection) Send(addr net.Addr, packet Packet) (err error) {
+func (c *Connection) Send(addr net.Addr, packet Packet) (size int, err error) {
 	if c.udp == nil {
-		return ErrConnectionClosed
+		return 0, ErrConnectionClosed
 	}
 
-	packet.SetProtocol(c.proto)
-
-	max := c.mtu - UDPHeaderSize
-	if uint32(len(packet)) > max {
-		packet = packet[:max]
+	if len(packet) > len(c.buf) {
+		return 0, ErrPacketSize
 	}
 
-	sent, err := c.udp.WriteTo(packet, addr)
+	packet.SetHeader(c.proto, c.LocalSequence, c.RemoteSequence, c.AckVector())
+
+	size, err = c.udp.WriteTo(packet, addr)
+
 	if err != nil {
 		return
 	}
 
-	if sent != len(packet) {
-		err = ErrSendFailed
-	}
-
+	c.PacketSent(size)
 	return
 }
 

@@ -21,13 +21,34 @@ const (
 // This includes our own XUDP header and the payload.
 type Packet []byte
 
-// NewPacket creates a new packet with the given payload and
-// enough header space to fit all header fields.
-// The header fields have yet to be set.
+// NewPacket creates a new packet with the given payload.
 func NewPacket(payload []byte) Packet {
 	p := make(Packet, XUDPHeaderSize+len(payload))
 	copy(p[XUDPHeaderSize:], payload)
 	return p
+}
+
+// SetHeader sets al packet header fields.
+func (p Packet) SetHeader(proto, sequence, ack, vector uint32) {
+	p[0] = byte(proto >> 24)
+	p[1] = byte(proto >> 16)
+	p[2] = byte(proto >> 8)
+	p[3] = byte(proto)
+
+	p[4] = byte(sequence >> 24)
+	p[5] = byte(sequence >> 16)
+	p[6] = byte(sequence >> 8)
+	p[7] = byte(sequence)
+
+	p[8] = byte(ack >> 24)
+	p[9] = byte(ack >> 16)
+	p[10] = byte(ack >> 8)
+	p[11] = byte(ack)
+
+	p[12] = byte(vector >> 24)
+	p[13] = byte(vector >> 16)
+	p[14] = byte(vector >> 8)
+	p[15] = byte(vector)
 }
 
 // Protocol returns the 32 bit, unsigned protocol id.
@@ -35,37 +56,15 @@ func (p Packet) Protocol() uint32 {
 	return uint32(p[0])<<24 | uint32(p[1])<<16 | uint32(p[2])<<8 | uint32(p[3])
 }
 
-// SetProtocol sets the 32 bit, unsigned protocol id.
-func (p Packet) SetProtocol(proto uint32) {
-	p[0] = byte(proto >> 24)
-	p[1] = byte(proto >> 16)
-	p[2] = byte(proto >> 8)
-	p[3] = byte(proto)
-}
-
 // Sequence returns the 32 bit, unsigned sequence number for this packet.
 func (p Packet) Sequence() uint32 {
 	return uint32(p[4])<<24 | uint32(p[5])<<16 | uint32(p[6])<<8 | uint32(p[7])
-}
-
-func (p Packet) SetSequence(sequence uint32) {
-	p[4] = byte(sequence >> 24)
-	p[5] = byte(sequence >> 16)
-	p[6] = byte(sequence >> 8)
-	p[7] = byte(sequence)
 }
 
 // Ack returns the 32 bit, unsigned sequence number for an acknowledged packet.
 // We incorporate this in the header, so ACKS can piggyback on regular data packets.
 func (p Packet) Ack() uint32 {
 	return uint32(p[8])<<24 | uint32(p[9])<<16 | uint32(p[10])<<8 | uint32(p[11])
-}
-
-func (p Packet) SetAck(ack uint32) {
-	p[8] = byte(ack >> 24)
-	p[9] = byte(ack >> 16)
-	p[10] = byte(ack >> 8)
-	p[11] = byte(ack)
 }
 
 // AckVector returns a 32 bit, unsigned bitset for additional ACKs.
@@ -84,13 +83,6 @@ func (p Packet) SetAck(ack uint32) {
 // ACK packet 99. Bit 2 ACKs packet 98, etc.
 func (p Packet) AckVector() uint32 {
 	return uint32(p[12])<<24 | uint32(p[13])<<16 | uint32(p[14])<<8 | uint32(p[15])
-}
-
-func (p Packet) SetAckVector(vector uint32) {
-	p[12] = byte(vector >> 24)
-	p[13] = byte(vector >> 16)
-	p[14] = byte(vector >> 8)
-	p[15] = byte(vector)
 }
 
 // Payload returns the packet data.

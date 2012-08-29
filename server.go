@@ -9,7 +9,7 @@ import (
 
 // Server represents a server connection.
 type Server struct {
-	*ReliableConnection
+	*Connection
 	clients    []*Client // List of active clients.
 	MaxClients uint      // Maximum number of clients we can accept at any given time.
 }
@@ -17,14 +17,14 @@ type Server struct {
 // NewServer creates a new, uninitialized server.
 func NewServer(mtu, protocolId uint32) *Server {
 	s := new(Server)
-	s.ReliableConnection = NewReliableConnection(mtu, protocolId)
+	s.Connection = NewConnection(mtu, protocolId)
 	s.MaxClients = 100
 	return s
 }
 
 // Recv receives a new packet. This is a blocking operation.
 func (s *Server) Recv() (addr net.Addr, packet Packet, err error) {
-	addr, packet, err = s.ReliableConnection.Recv()
+	addr, packet, err = s.Connection.Recv()
 
 	if err != nil {
 		return

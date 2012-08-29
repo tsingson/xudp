@@ -17,11 +17,7 @@ Features include:
   in the correct order.
 * Highly redundant reception acknowledgement by piggybacking multiple
   ACKs on regular data packets.
-* A single connection type which functions as a server and client at
-  the same time. It hides the internals required to make this work.
-  To the host, we are simply working with a two-way connection on which
-  we can read/write data at will. 
-
+* Adjustable transfer rates to adapt to changing connection quality.
 
 ### Usage
 
