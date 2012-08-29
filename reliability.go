@@ -222,10 +222,10 @@ func (r *Reliability) UpdateStats() {
 
 // Reset sets the Reliability system to its initial state.
 func (r *Reliability) Reset() {
-	r.sentQueue.Clear()
-	r.recvQueue.Clear()
-	r.pendingAckQueue.Clear()
-	r.ackedQueue.Clear()
+	r.sentQueue = r.sentQueue[:0]
+	r.recvQueue = r.recvQueue[:0]
+	r.pendingAckQueue = r.pendingAckQueue[:0]
+	r.ackedQueue = r.ackedQueue[:0]
 
 	r.LocalSequence = 0
 	r.RemoteSequence = 0
