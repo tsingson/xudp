@@ -3,12 +3,21 @@
 
 package xudp
 
+type packetData struct {
+	sequence uint32
+	time     float32
+	size     uint
+}
+
 // packetQueue holds a list of packets, sorted by sequence number.
-type packetQueue []Packet
+type packetQueue []packetData
+
+// Clear empties the queue.
+func (q *packetQueue) Clear() { *q = (*q)[:0] }
 
 func (q packetQueue) Exists(seq uint32) bool {
 	for _, p := range q {
-		if p.Sequence() == seq {
+		if p.sequence == seq {
 			return true
 		}
 	}
@@ -16,29 +25,42 @@ func (q packetQueue) Exists(seq uint32) bool {
 	return false
 }
 
-// Insert inserts the given packet into the queue.
-// This guarantees the packets remain sorted by sequence number.
-func (q *packetQueue) Insert(p Packet, maxSequence uint32) {
-	if len(*q) == 0 {
-		*q = append(*q, p)
+// RemoveAt removes the entry at the given index.
+func (q *packetQueue) RemoveAt(i int) {
+	if i < 0 || i >= len(*q) {
 		return
 	}
 
 	tq := *q
-	pseq := p.Sequence()
+	copy(tq[i:], tq[i+1:])
+	tq = tq[:len(tq)-1]
+	*q = tq
+}
+
+// Insert inserts the given packet into the queue.
+// This guarantees the packets remain sorted by sequence number.
+func (q *packetQueue) Insert(p packetData) {
+	tq := *q
+
+	if len(tq) == 0 {
+		*q = append(tq, p)
+		return
+	}
+
+	pseq := p.sequence
 
 	switch {
-	case isMoreRecent(tq[0].Sequence(), pseq, maxSequence):
+	case isMoreRecent(tq[0].sequence, pseq):
 		tq = append(tq, p)
 		sz := len(tq) - 1
 		tq[0], tq[sz] = tq[sz], tq[0]
 
-	case isMoreRecent(pseq, tq[len(tq)-1].Sequence(), maxSequence):
+	case isMoreRecent(pseq, tq[len(tq)-1].sequence):
 		tq = append(tq, p)
 
 	default:
 		for i := range tq {
-			if !isMoreRecent(tq[i].Sequence(), pseq, maxSequence) {
+			if !isMoreRecent(tq[i].sequence, pseq) {
 				continue
 			}
 
@@ -52,8 +74,4 @@ func (q *packetQueue) Insert(p Packet, maxSequence uint32) {
 	}
 
 	*q = tq
-}
-
-func isMoreRecent(a, b, max uint32) bool {
-	return (a > b) && (a-b <= max) || (b > a) && (b-a > max)
 }

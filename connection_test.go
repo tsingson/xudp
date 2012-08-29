@@ -4,7 +4,6 @@
 package xudp
 
 import (
-	"log"
 	"net"
 	"testing"
 	"time"
@@ -46,12 +45,9 @@ func TestConnection(t *testing.T) {
 
 	for {
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(time.Microsecond * 10):
 			bob.Close()
 			jane.Close()
-
-			log.Printf("%s: %d", bob.Name, bob.Count)
-			log.Printf("%s: %d", jane.Name, jane.Count)
 			return
 		}
 	}
@@ -70,7 +66,6 @@ func echo(t *testing.T, c *TestConn) {
 
 		c.Count++
 
-		//log.Printf("%v", packet)
 		err = c.Send(sender, packet)
 
 		if err != nil {

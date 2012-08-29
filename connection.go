@@ -16,15 +16,15 @@ var (
 	ErrSendFailed       = errors.New("Send was incomplete.")
 )
 
-// A connection allows two-way communication with an end point.
+// A connection allows simple, two-way communication with an end point.
 // It functions as both a client and server at the same time.
-// It does not deal with dropped packet retransmission.
+// It does not deal with dropped packet retransmission, nor does it
+// keep track of which clients connected.
 type Connection struct {
-	buf     Packet         // Temporary receive buffer.
-	udp     net.PacketConn // Sockets underlying connection.
-	proto   uint32         // Protocol ID identifying our packets.
-	mtu     uint32         // Maximum transport unit.
-	Timeout uint           // Timeout defines the connection timeout in seconds.
+	buf   Packet         // Temporary receive buffer.
+	udp   net.PacketConn // Sockets underlying connection.
+	proto uint32         // Protocol ID identifying our packets.
+	mtu   uint32         // Maximum transport unit.
 }
 
 // NewConnection creates a new connection.
@@ -59,7 +59,6 @@ func NewConnection(mtu, protocolId uint32) *Connection {
 	c.proto = protocolId
 	c.mtu = mtu
 	c.buf = make(Packet, c.mtu-UDPHeaderSize)
-	c.Timeout = 3
 	return c
 }
 
@@ -136,6 +135,3 @@ func (c *Connection) Recv() (addr net.Addr, packet Packet, err error) {
 	copy(packet, c.buf)
 	return
 }
-
-// IsOpen returns true if the connection is currently open.
-func (c *Connection) IsOpen() bool { return c.udp != nil }
