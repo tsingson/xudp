@@ -30,7 +30,7 @@ func TestBitIndex(t *testing.T) {
 func TestAckVector(t *testing.T) {
 	r := NewReliability()
 
-	for i := uint32(0); i < 32; i++ {
+	for i := 0; i < 32; i++ {
 		r.recvQueue.Insert(packetData{sequence: uint32(i)})
 	}
 

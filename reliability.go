@@ -6,11 +6,11 @@ package xudp
 // Maximum packet sequence value before overflow.	
 const MaxSequence = 1<<32 - 1
 
-// isMoreRecent checks if sequence a is newer than sequcen b,
+// isMoreRecent checks if sequence a is newer than sequence b,
 // while taking integer overflow into account.
 func isMoreRecent(a, b uint32) bool {
-	const max = MaxSequence / 2
-	return ((a > b) && (a-b <= max)) || ((b > a) && (b-a > max))
+	const max = MaxSequence >> 1
+	return (a > b) && (a-b <= max) || (b > a) && (b-a > max)
 }
 
 // bitIndex finds the ack vector bit index for the given sequence number.
