@@ -7,127 +7,75 @@ import (
 	"testing"
 )
 
-const (
-	PacketCount = 100
-	PacketSize  = 100
-	DeltaTime   = 0.1
-)
-
-func TestReliableSend(t *testing.T) {
-	r := NewReliability()
-
-	for i := 0; i < PacketCount; i++ {
-		r.PacketSent(PacketSize)
+func TestBitIndex(t *testing.T) {
+	tests := [][3]uint32{
+		{99, 100, 0},
+		{0, 1, 0},
+		{MaxSequence, 0, 0},
+		{MaxSequence, 1, 1},
+		{MaxSequence - 1, 1, 2},
+		{MaxSequence - 1, 2, 3},
 	}
 
-	validate(t, r, PacketCount, 0, PacketCount, 0, 0, 0)
-}
+	for _, bt := range tests {
+		bit := bitIndex(bt[0], bt[1])
 
-func TestReliableRecv(t *testing.T) {
-	r := NewReliability()
-
-	for i := 0; i < PacketCount; i++ {
-		r.PacketRecv(uint32(i), PacketSize)
-	}
-
-	validate(t, r, 0, PacketCount-1, 0, PacketCount, 0, 0)
-}
-
-func TestReliableQueueTime(t *testing.T) {
-	r := NewReliability()
-
-	for i := 0; i < PacketCount; i++ {
-		r.PacketSent(PacketSize)
-	}
-
-	for i := 0; i < PacketCount; i++ {
-		r.AdvanceQueueTime(DeltaTime)
-	}
-
-	const epsilon = 0.001
-
-	time := float32(DeltaTime * PacketCount)
-	min := time - epsilon
-	max := time + epsilon
-
-	for _, pd := range r.sentQueue {
-		if pd.time < min || pd.time > max {
-			t.Errorf("sentQueue time mismatch: Want %f, have %f",
-				time, pd.time)
-		}
-	}
-
-	for _, pd := range r.recvQueue {
-		if pd.time < min || pd.time > max {
-			t.Errorf("recvQueue time mismatch: Want %f, have %f",
-				time, pd.time)
-		}
-	}
-
-	for _, pd := range r.pendingAckQueue {
-		if pd.time < min || pd.time > max {
-			t.Errorf("pendingAckQueue time mismatch: Want %f, have %f",
-				time, pd.time)
-		}
-	}
-
-	for _, pd := range r.ackedQueue {
-		if pd.time < min || pd.time > max {
-			t.Errorf("ackedQueue time mismatch: Want %f, have %f",
-				time, pd.time)
+		if bit != bt[2] {
+			t.Fatalf("Ack %x, Vector %x: Expected %x, got %x",
+				bt[0], bt[1], bt[2], bit)
 		}
 	}
 }
 
-func TestReliableUpdateQueue(t *testing.T) {
+func TestAckVector(t *testing.T) {
 	r := NewReliability()
 
-	for i := 0; i < PacketCount; i++ {
-		r.PacketSent(PacketSize)
-		r.AdvanceQueueTime(DeltaTime)
+	for i := uint32(0); i < 32; i++ {
+		r.recvQueue.Insert(packetData{sequence: uint32(i)})
 	}
 
-	r.UpdateQueues()
-
-	if sz := len(r.sentQueue); sz != 10 {
-		t.Errorf("sentQueue mismatch: Want 10, have %d", sz)
+	tests := [][2]uint32{
+		{32, 0xffffffff},
+		{31, 0x7fffffff},
+		{33, 0xfffffffe},
+		{16, 0x0000ffff},
+		{48, 0xffff0000},
 	}
 
-	if sz := len(r.recvQueue); sz != 0 {
-		t.Errorf("recvQueue mismatch: Want 0, have %d", sz)
-	}
+	for _, bt := range tests {
+		r.RemoteSequence = bt[0]
+		vector := r.AckVector()
 
-	if sz := len(r.pendingAckQueue); sz != 10 {
-		t.Errorf("pendingAckQueue mismatch: Want 10, have %d", sz)
-	}
-
-	if sz := len(r.ackedQueue); sz != 0 {
-		t.Errorf("ackedQueue mismatch: Want 0, have %d", sz)
+		if vector != bt[1] {
+			t.Errorf("Ack %d. Want 0x%08x, Got 0x%08x", bt[0], bt[1], vector)
+		}
 	}
 }
 
-func validate(t *testing.T, r *Reliability, ls, rs uint32, sp, rp, ap, lp uint64) {
-	if r.LocalSequence != ls {
-		t.Errorf("LocalSequence mismatch: Want %d, have %d", ls, r.LocalSequence)
+func TestAckVectorWrapped(t *testing.T) {
+	r := NewReliability()
+
+	r.recvQueue.Insert(packetData{sequence: MaxSequence - 1})
+	r.recvQueue.Insert(packetData{sequence: MaxSequence})
+	r.recvQueue.Insert(packetData{sequence: 0})
+
+	tests := [][2]uint32{
+		{0, 0x3},
+		{MaxSequence, 0x1},
+		{1, 0x7},
+		{MaxSequence - 1, 0x0},
+		{MaxSequence - 2, 0x0},
+		{16, 0x00038000},
+		{32, 0x80000000},
+		{33, 0x0},
 	}
 
-	if r.RemoteSequence != rs {
-		t.Errorf("LocalSequence mismatch: Want %d, have %d", rs, r.RemoteSequence)
-	}
+	for _, bt := range tests {
+		r.RemoteSequence = bt[0]
+		vector := r.AckVector()
 
-	if r.SentPackets != sp {
-		t.Errorf("SentPackets mismatch: Want %d, have %d", sp, r.SentPackets)
-	}
-
-	if r.RecvPackets != rp {
-		t.Errorf("RecvPackets mismatch: Want %d, have %d", rp, r.RecvPackets)
-	}
-
-	if r.AckedPackets != ap {
-		t.Errorf("AckedPackets mismatch: Want %d, have %d", ap, r.AckedPackets)
-	}
-
-	if r.LostPackets != lp {
-		t.Errorf("LostPackets mismatch: Want %d, have %d", lp, r.LostPackets)
+		if vector != bt[1] {
+			t.Errorf("Ack %d. Want 0x%08x, Got 0x%08x", bt[0], bt[1], vector)
+		}
 	}
 }

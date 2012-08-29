@@ -9,7 +9,8 @@ const MaxSequence = 1<<32 - 1
 // isMoreRecent checks if sequence a is newer than sequcen b,
 // while taking integer overflow into account.
 func isMoreRecent(a, b uint32) bool {
-	return (a > b) && (a-b <= MaxSequence) || (b > a) && (b-a > MaxSequence)
+	const max = MaxSequence / 2
+	return ((a > b) && (a-b <= max)) || ((b > a) && (b-a > max))
 }
 
 // bitIndex finds the ack vector bit index for the given sequence number.
@@ -174,7 +175,8 @@ func (r *Reliability) UpdateQueues() {
 			minSeq = MaxSequence - (34 - lastSeq)
 		}
 
-		for len(r.recvQueue) > 0 && isMoreRecent(minSeq, r.recvQueue[0].sequence) {
+		for len(r.recvQueue) > 0 &&
+			isMoreRecent(minSeq, r.recvQueue[0].sequence) {
 			r.recvQueue = r.recvQueue[1:]
 		}
 	}
