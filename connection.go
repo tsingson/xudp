@@ -19,9 +19,9 @@ var (
 // A connection allows reliable, two-way communication with an end point.
 type Connection struct {
 	*Reliability
-	buf   Packet         // Temporary receive buffer.
-	udp   net.PacketConn // Sockets underlying connection.
-	proto uint32         // Protocol ID identifying our packets.
+	buf        Packet         // Temporary receive buffer.
+	udp        net.PacketConn // Sockets underlying connection.
+	ProtocolId uint32         // Protocol ID identifying our packets.
 }
 
 // NewConnection creates a new connection.
@@ -54,7 +54,7 @@ type Connection struct {
 func NewConnection(mtu, protocolId uint32) *Connection {
 	c := new(Connection)
 	c.Reliability = NewReliability()
-	c.proto = protocolId
+	c.ProtocolId = protocolId
 	c.buf = make(Packet, mtu-UDPHeaderSize)
 	return c
 }
@@ -98,7 +98,7 @@ func (c *Connection) Send(addr net.Addr, packet Packet) (size int, err error) {
 		return 0, ErrPacketSize
 	}
 
-	packet.SetHeader(c.proto, c.LocalSequence, c.RemoteSequence, c.AckVector())
+	packet.SetHeader(c.ProtocolId, c.LocalSequence, c.RemoteSequence, c.AckVector())
 
 	size, err = c.udp.WriteTo(packet, addr)
 
@@ -121,7 +121,7 @@ func (c *Connection) Recv() (addr net.Addr, packet Packet, err error) {
 		return
 	}
 
-	if size < XUDPHeaderSize || c.buf.Protocol() != c.proto {
+	if size < XUDPHeaderSize || c.buf.Protocol() != c.ProtocolId {
 		return // Not enough data or not meant for us.
 	}
 
