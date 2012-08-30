@@ -12,12 +12,14 @@ Features include:
 * IPv4 and IPv6 support.
 * NAT punch-through: Reliable identification of peers behind the same
   public IP/NAT setup.
-* Packet fragmentation: Sending and receiving of data that spans
-  multiple packets. The data is guaranteed to be received and reassembled
-  in the correct order.
 * Highly redundant reception acknowledgement by piggybacking multiple
   ACKs on regular data packets.
-* Adjustable transfer rates to adapt to changing connection quality.
+* Expose event handlers for cases where indivual packets are lost or ACK'ed.
+  This allows the host application to implement resending of lost packets.
+  Our library does not do this, because this behaviour is the reason why
+  TCP is slow. We therefor leave it to the host application to determine
+  what to do when packets are lost.
+
 
 ### Usage
 
