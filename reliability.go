@@ -3,7 +3,7 @@
 
 package xudp
 
-// Maximum packet sequence value before overflow.	
+// Maximum packet sequence value.	
 const MaxSequence = 1<<32 - 1
 
 // isMoreRecent checks if sequence a is newer than sequence b,

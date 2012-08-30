@@ -16,7 +16,7 @@ From this point on, both will simply bounce a random packet payload
 back and forth between them until one of the programs is stopped.
 
 The speed of the packet transfer is limited to our hypothetical game loop.
-It is set to 30 frames per second. This means we send/recv data at this
+It is set to 30 frames per second. This avgs we send/recv data at this
 same rate. loop() contains timers which govern the progression of each frame.
 Play with the ticker timeouts to increase or decrease the transfer speed.
 Remove the timers to just go all out.
@@ -37,7 +37,6 @@ const (
 	MTU         = 1400
 	ProtocolId  = 0xBADBEEF
 	FrameRate   = 30
-	DeltaTime   = 1.0 / FrameRate
 	PayloadSize = MTU - xudp.UDPHeaderSize - xudp.XUDPHeaderSize
 )
 
@@ -92,15 +91,17 @@ func initConn(port int) *xudp.Connection {
 // The main 'game' loop.
 func loop(c *xudp.Connection, address net.Addr) {
 	var payload []byte
+	var prevTime, currTime int64
+	var delta float32
 	var ok bool
 
 	// Track average sent/ACK'ed bandwidth
-	meanSent := make([]float32, 0, 100)
-	meanAcked := make([]float32, 0, 100)
+	avgSent := make([]float32, 0, 100)
+	avgAcked := make([]float32, 0, 100)
 
 	// Frame progression ticker.
 	frameTick := time.NewTicker(time.Second / FrameRate)
-	
+
 	// Statistics printing ticker.
 	statTick := time.NewTicker(time.Second)
 
@@ -108,54 +109,30 @@ func loop(c *xudp.Connection, address net.Addr) {
 	// This allows us to do non-blocking reads.
 	recv := readLoop(c)
 
+	// If we have an address, we are the 'client' and should
+	// initiate the echo loop.
 	if address != nil {
 		c.Send(address, xudp.NewPacket([]byte("Hello")))
 	}
 
 	for {
+		// Compute new delta time.
+		currTime = time.Now().UnixNano()
+		delta = float32(currTime-prevTime) / float32(time.Second)
+		prevTime = currTime
+
 		select {
 		case <-frameTick.C:
-			address, ok = <-recv
-
-			if !ok {
+			if address, ok = <-recv; !ok {
 				break
 			}
 
 			payload = make([]byte, rand.Int31n(PayloadSize))
 			c.Send(address, xudp.NewPacket(payload))
-			c.Update(DeltaTime)
+			c.Update(delta)
 
 		case <-statTick.C:
-			rtt := c.RTT
-			sp := c.SentPackets
-			ap := c.AckedPackets
-			lp := c.LostPackets
-
-			// Update list for average sent bandwidth
-			if len(meanSent) < cap(meanSent) {
-				meanSent = append(meanSent, c.SentBandwidth)
-			} else {
-				copy(meanSent[1:], meanSent)
-				meanSent[0] = c.SentBandwidth
-			}
-
-			// Update list for average ACK'ed bandwidth
-			if len(meanAcked) < cap(meanAcked) {
-				meanAcked = append(meanAcked, c.AckedBandwidth)
-			} else {
-				copy(meanAcked[1:], meanAcked)
-				meanAcked[0] = c.AckedBandwidth
-			}
-
-			var lr float32
-
-			if sp > 0 {
-				lr = float32(lp) / float32(sp) * 100.0
-			}
-
-			fmt.Printf(
-				"rtt %.1fms, sent %d, acked %d, lost %d (%.1f%%), sent bandwidth = %.1fkbps, acked bandwidth = %.1fkbps\n",
-				rtt*1000.0, sp, ap, lp, lr, mean(meanSent), mean(meanAcked))
+			stat(c, &avgSent, &avgAcked)
 		}
 	}
 }
@@ -185,8 +162,42 @@ func readLoop(c *xudp.Connection) <-chan net.Addr {
 	return ch
 }
 
-// mean returns the average of all values in the given list.
-func mean(list []float32) float64 {
+// stat prints connection statistics.
+func stat(c *xudp.Connection, sent, acked *[]float32) {
+	rt := c.RTT
+	sp := c.SentPackets
+	ap := c.AckedPackets
+	lp := c.LostPackets
+
+	// Update list for average sent bandwidth
+	if len(*sent) < cap(*sent) {
+		*sent = append(*sent, c.SentBandwidth)
+	} else {
+		copy((*sent)[1:], *sent)
+		(*sent)[0] = c.SentBandwidth
+	}
+
+	// Update list for average ACK'ed bandwidth
+	if len(*acked) < cap(*acked) {
+		*acked = append(*acked, c.AckedBandwidth)
+	} else {
+		copy((*acked)[1:], *acked)
+		(*acked)[0] = c.AckedBandwidth
+	}
+
+	var lr float32
+
+	if sp > 0 {
+		lr = float32(lp) / float32(sp) * 100.0
+	}
+
+	fmt.Printf(
+		"rtt %.1fms, sent %d (%.1fkbps), acked %d (%.1fkbps), lost %d (%.1f%%)\n",
+		rt*1000.0, sp, avg(*sent), ap, avg(*acked), lp, lr)
+}
+
+// avg returns the average of all values in the given list.
+func avg(list []float32) float64 {
 	switch len(list) {
 	case 0:
 		return 0
