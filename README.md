@@ -1,6 +1,6 @@
 ## xudp
 
-**Note**: This needs more testing.
+**Note**: This is work in progress and needs more testing.
 
 XUDP offers an API for extended UDP networking.
 
