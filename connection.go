@@ -14,6 +14,7 @@ var (
 	ErrConnectionOpen   = errors.New("Connection is already open.")
 	ErrConnectionClosed = errors.New("Connection is already closed.")
 	ErrPacketSize       = errors.New("Packet size exceeds MTU.")
+	ErrShortWrite       = errors.New("Short write: Send was incomplete.")
 )
 
 // A connection allows reliable, two-way communication with an end point.
@@ -91,23 +92,26 @@ func (c *Connection) Close() (err error) {
 }
 
 // Send sends the given payload to the specified destination.
-func (c *Connection) Send(addr net.Addr, payload []byte) (size int, err error) {
+func (c *Connection) Send(addr net.Addr, payload []byte) (err error) {
 	if c.udp == nil {
-		return 0, ErrConnectionClosed
+		return ErrConnectionClosed
 	}
 
 	if len(payload) > len(c.buf)-XUDPHeaderSize {
-		return 0, ErrPacketSize
+		return ErrPacketSize
 	}
 
 	packet := NewPacket(payload)
-	packet.SetHeader(c.protocolId, c.LocalSequence,
-		c.RemoteSequence, c.AckVector())
+	packet.SetHeader(c.protocolId, c.LocalSequence, c.RemoteSequence, c.AckVector())
 
-	size, err = c.udp.WriteTo(packet, addr)
+	size, err := c.udp.WriteTo(packet, addr)
 
 	if err != nil {
 		return
+	}
+
+	if size < len(packet) {
+		return ErrShortWrite
 	}
 
 	c.PacketSent(uint32(size))

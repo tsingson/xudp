@@ -33,7 +33,7 @@ What do we not support:
   event handlers.
 * Packet fragmentation, encryption or compression. These are all high
   level abstractions that are best left to the host application, because
-  networking requirements are all very different from one case to the next.
+  networking requirements are very different from one case to the next.
 
 The API is still pretty low level and in order to use it in a program,
 one likely has to write a fair amount of boiler plate, but this api at least

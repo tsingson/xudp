@@ -66,8 +66,7 @@ func echo(t *testing.T, c *TestConn) {
 			t.Fatal(err)
 		}
 
-		_, err = c.Send(sender, payload)
-
+		err = c.Send(sender, payload)
 		if err != nil {
 			t.Fatal(err)
 		}
