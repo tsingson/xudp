@@ -31,7 +31,6 @@ type Reliability struct {
 	pendingAckQueue packetQueue   // Sent packets which have not been acked yet.
 	recvQueue       packetQueue   // Received packets used to determine acks to send.
 	ackedQueue      packetQueue   // ACK'ed packets.
-	Acks            []uint32      // ACK'ed packets from last set of packet receives.
 	SentPackets     uint64        // Number of packets sent.
 	RecvPackets     uint64        // Number of packets received.
 	SentBytes       uint64        // Number of bytes sent.
@@ -108,6 +107,32 @@ func (r *Reliability) AckVector() uint32 {
 	return vector
 }
 
+// Update takes a frame time delta and updates packet timeouts with it.
+func (r *Reliability) Update(delta float32) {
+	r.advanceQueueTime(delta)
+	r.updateQueues()
+	r.updateStats()
+}
+
+// Reset sets the Reliability system to its initial state.
+func (r *Reliability) Reset() {
+	r.sentQueue = r.sentQueue[:0]
+	r.recvQueue = r.recvQueue[:0]
+	r.pendingAckQueue = r.pendingAckQueue[:0]
+	r.ackedQueue = r.ackedQueue[:0]
+
+	r.LocalSequence = 0
+	r.RemoteSequence = 0
+	r.SentPackets = 0
+	r.RecvPackets = 0
+	r.LostPackets = 0
+	r.AckedPackets = 0
+	r.SentBandwidth = 0
+	r.AckedBandwidth = 0
+	r.RTT = 0
+	r.RTTMax = 1
+}
+
 // processAck handles a single incoming ACK with ACK vector.
 func (r *Reliability) processAck(ack, vector uint32) {
 	if len(r.pendingAckQueue) == 0 {
@@ -139,7 +164,6 @@ func (r *Reliability) processAck(ack, vector uint32) {
 
 		r.RTT += (pd.time - r.RTT) * 0.1
 		r.ackedQueue.Insert(pd)
-		r.Acks = append(r.Acks, pd.sequence)
 		r.AckedPackets++
 		r.pendingAckQueue.RemoveAt(i)
 		i--
@@ -148,14 +172,6 @@ func (r *Reliability) processAck(ack, vector uint32) {
 			r.OnAcked(pd.sequence)
 		}
 	}
-}
-
-// Update takes frame time delta and updates packet timeouts with it.
-func (r *Reliability) Update(delta float32) {
-	r.Acks = r.Acks[:0]
-	r.advanceQueueTime(delta)
-	r.updateQueues()
-	r.updateStats()
 }
 
 // AdvanceQueueTime updates the timestamp for each queued packet.
@@ -242,24 +258,4 @@ func (r *Reliability) updateStats() {
 
 	r.SentBandwidth = sentBytesPerSec * (8 / 1000.0)
 	r.AckedBandwidth = ackedBytesPerSec * (8 / 1000.0)
-}
-
-// Reset sets the Reliability system to its initial state.
-func (r *Reliability) Reset() {
-	r.Acks = r.Acks[:0]
-	r.sentQueue = r.sentQueue[:0]
-	r.recvQueue = r.recvQueue[:0]
-	r.pendingAckQueue = r.pendingAckQueue[:0]
-	r.ackedQueue = r.ackedQueue[:0]
-
-	r.LocalSequence = 0
-	r.RemoteSequence = 0
-	r.SentPackets = 0
-	r.RecvPackets = 0
-	r.LostPackets = 0
-	r.AckedPackets = 0
-	r.SentBandwidth = 0
-	r.AckedBandwidth = 0
-	r.RTT = 0
-	r.RTTMax = 1
 }
