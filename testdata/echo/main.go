@@ -97,8 +97,15 @@ func loop(c *xudp.Connection, address net.Addr) {
 	// Track average sent/ACK'ed bandwidth
 	meanSent := make([]float32, 0, 100)
 	meanAcked := make([]float32, 0, 100)
+
+	// Frame progression ticker.
 	frameTick := time.NewTicker(time.Second / FrameRate)
+	
+	// Statistics printing ticker.
 	statTick := time.NewTicker(time.Second)
+
+	// Channel which accepts incoming messages.
+	// This allows us to do non-blocking reads.
 	recv := readLoop(c)
 
 	if address != nil {
