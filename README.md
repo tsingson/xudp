@@ -35,10 +35,6 @@ What do we not support:
   level abstractions that are best left to the host application, because
   networking requirements are very different from one case to the next.
 
-The API is still pretty low level and in order to use it in a program,
-one likely has to write a fair amount of boiler plate, but this api at least
-takes care of the most basic of requirements.
-
 Much of the code in this package is ported from the guides published [here][1]
 
 [1]: http://gafferongames.com/networking-for-game-programmers/udp-vs-tcp/
