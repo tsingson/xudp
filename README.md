@@ -21,7 +21,7 @@ What we support:
   everything else until the lost packet has been re-sent and ACK'ed by
   the other end. For applications where time-sensitive data should
   go through as fast as possible, this is very much not what we want.
-  We therefor leave it to the host application to determine
+  We therefore leave it to the host application to determine
   what to do when packets are lost. It can resend packets selectively
   while not preventing the reception of remaining data.
 
