@@ -118,8 +118,7 @@ func (c *Connection) Send(addr net.Addr, payload []byte) (err error) {
 	return
 }
 
-// Recv receives a new payload. It takes care of reassembling
-// fragmented packets when necessary. This is a blocking operation.
+// Recv receives a new payload. This is a blocking operation.
 func (c *Connection) Recv() (addr net.Addr, payload []byte, err error) {
 	if c.udp == nil {
 		return nil, nil, ErrConnectionClosed
@@ -142,6 +141,6 @@ func (c *Connection) Recv() (addr net.Addr, payload []byte, err error) {
 	}
 
 	payload = make([]byte, size)
-	copy(payload, c.buf.Payload())
+	copy(payload, c.buf[XUDPHeaderSize:XUDPHeaderSize+size])
 	return
 }
