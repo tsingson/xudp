@@ -24,7 +24,7 @@ Features include:
 	  We therefor leave it to the host application to determine
 	  what to do when packets are lost. It can resend packets selectively
 	  while not preventing the reception of remaining data.
-	* This packet explicitely does **not** guarantee in-order reception
+	* This package explicitely does **not** guarantee in-order reception
 	  of packets, for the same reason described in the previous point.
 */
 package xudp
