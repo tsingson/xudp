@@ -31,7 +31,7 @@ func TestAckVector(t *testing.T) {
 	r := NewReliability()
 
 	for i := 0; i < 32; i++ {
-		r.recvQueue.Insert(packetData{sequence: uint32(i)})
+		r.recvQueue.Insert(&packetData{sequence: uint32(i)})
 	}
 
 	tests := [][2]uint32{
@@ -55,9 +55,9 @@ func TestAckVector(t *testing.T) {
 func TestAckVectorWrapped(t *testing.T) {
 	r := NewReliability()
 
-	r.recvQueue.Insert(packetData{sequence: MaxSequence - 1})
-	r.recvQueue.Insert(packetData{sequence: MaxSequence})
-	r.recvQueue.Insert(packetData{sequence: 0})
+	r.recvQueue.Insert(&packetData{sequence: MaxSequence - 1})
+	r.recvQueue.Insert(&packetData{sequence: MaxSequence})
+	r.recvQueue.Insert(&packetData{sequence: 0})
 
 	tests := [][2]uint32{
 		{0, 0x3},
@@ -84,7 +84,7 @@ func TestprocessAck1(t *testing.T) {
 	r := NewReliability()
 
 	for i := 0; i < 33; i++ {
-		r.pendingAckQueue.Insert(packetData{sequence: uint32(i)})
+		r.pendingAckQueue.Insert(&packetData{sequence: uint32(i)})
 	}
 
 	r.RTT = 0
@@ -118,7 +118,7 @@ func TestprocessAck2(t *testing.T) {
 	r := NewReliability()
 
 	for i := 0; i < 33; i++ {
-		r.pendingAckQueue.Insert(packetData{sequence: uint32(i)})
+		r.pendingAckQueue.Insert(&packetData{sequence: uint32(i)})
 	}
 
 	r.RTT = 0
@@ -160,7 +160,7 @@ func TestprocessAck3(t *testing.T) {
 	r := NewReliability()
 
 	for i := 0; i < 32; i++ {
-		r.pendingAckQueue.Insert(packetData{sequence: uint32(i)})
+		r.pendingAckQueue.Insert(&packetData{sequence: uint32(i)})
 	}
 
 	r.RTT = 0

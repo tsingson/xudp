@@ -13,7 +13,7 @@ func TestQueueInsertBack(t *testing.T) {
 	var q packetQueue
 
 	for i := uint32(0); i < 100; i++ {
-		q.Insert(packetData{sequence: i})
+		q.Insert(&packetData{sequence: i})
 
 		if !isQueueSorted(q) {
 			t.Fatalf("Queue sorting failure at sequence %d", i)
@@ -25,7 +25,7 @@ func TestQueueInsertFront(t *testing.T) {
 	var q packetQueue
 
 	for i := 100; i >= 1; i-- {
-		q.Insert(packetData{sequence: uint32(i)})
+		q.Insert(&packetData{sequence: uint32(i)})
 
 		if !isQueueSorted(q) {
 			t.Fatalf("Queue sorting failure at sequence %d", i)
@@ -38,7 +38,7 @@ func TestQueueInsertRandom(t *testing.T) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i := uint32(100); i >= 1; i-- {
-		q.Insert(packetData{sequence: uint32(r.Int31n(int32(i)))})
+		q.Insert(&packetData{sequence: uint32(r.Int31n(int32(i)))})
 
 		if !isQueueSorted(q) {
 			t.Fatalf("Queue sorting failure at sequence %d", i)
@@ -50,7 +50,7 @@ func TestQueueInsertWrapped(t *testing.T) {
 	var q packetQueue
 
 	for i := uint32(MaxSequence - 5); i < MaxSequence; i++ {
-		q.Insert(packetData{sequence: i})
+		q.Insert(&packetData{sequence: i})
 
 		if !isQueueSorted(q) {
 			t.Fatalf("Queue sorting failure at sequence %d", i)
@@ -58,7 +58,7 @@ func TestQueueInsertWrapped(t *testing.T) {
 	}
 
 	for i := uint32(0); i <= 5; i++ {
-		q.Insert(packetData{sequence: i})
+		q.Insert(&packetData{sequence: i})
 
 		if !isQueueSorted(q) {
 			t.Fatalf("Queue sorting failure at sequence %d", i)

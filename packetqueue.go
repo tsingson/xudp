@@ -10,7 +10,7 @@ type packetData struct {
 }
 
 // packetQueue holds a list of packets, sorted by sequence number.
-type packetQueue []packetData
+type packetQueue []*packetData
 
 // Exists returns true if the given sequence number is present
 // in one of the list's elements.
@@ -38,7 +38,7 @@ func (q *packetQueue) RemoveAt(i int) {
 }
 
 // Insert inserts p ensuring the list remains sorted by sequence number.
-func (q *packetQueue) Insert(p packetData) {
+func (q *packetQueue) Insert(p *packetData) {
 	if len(*q) == 0 {
 		*q = append(*q, p)
 		return

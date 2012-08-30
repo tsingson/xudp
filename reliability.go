@@ -58,8 +58,8 @@ func (r *Reliability) PacketSent(size uint32) {
 	pd.sequence = r.LocalSequence
 	pd.size = size
 
-	r.sentQueue = append(r.sentQueue, pd)
-	r.pendingAckQueue = append(r.pendingAckQueue, pd)
+	r.sentQueue = append(r.sentQueue, &pd)
+	r.pendingAckQueue = append(r.pendingAckQueue, &pd)
 	r.SentPackets++
 	r.LocalSequence++
 	r.SentBytes += uint64(size)
@@ -75,7 +75,7 @@ func (r *Reliability) PacketRecv(sequence, ack, vector, size uint32) {
 		return
 	}
 
-	r.recvQueue = append(r.recvQueue, packetData{
+	r.recvQueue = append(r.recvQueue, &packetData{
 		sequence: sequence,
 		size:     size,
 	})
@@ -139,7 +139,7 @@ func (r *Reliability) processAck(ack, vector uint32) {
 		return
 	}
 
-	var pd packetData
+	var pd *packetData
 	var acked bool
 	var bit uint32
 
@@ -239,7 +239,7 @@ func (r *Reliability) updateQueues() {
 func (r *Reliability) updateStats() {
 	var ackedBytesPerSec float32
 	var sentBytesPerSec float32
-	var pd packetData
+	var pd *packetData
 
 	rm := r.RTTMax
 
