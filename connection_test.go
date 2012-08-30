@@ -16,21 +16,17 @@ const (
 
 type TestConn struct {
 	*Connection
-	Addr  *net.UDPAddr
-	Name  string
-	Count uint64
+	Addr *net.UDPAddr
 }
 
 var (
 	bob = &TestConn{
 		Connection: NewConnection(MTU, ProtocolId),
-		Name:       "bob",
 		Addr:       &net.UDPAddr{Port: 12345},
 	}
 
 	jane = &TestConn{
 		Connection: NewConnection(MTU, ProtocolId),
-		Name:       "jane",
 		Addr:       &net.UDPAddr{Port: 12346},
 	}
 )
@@ -45,7 +41,7 @@ func TestConnection(t *testing.T) {
 
 	for {
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(time.Second / 2):
 			bob.Close()
 			jane.Close()
 			return
@@ -54,32 +50,29 @@ func TestConnection(t *testing.T) {
 }
 
 func echo(t *testing.T, c *TestConn) {
-	const delta = 1.0 / 30.0
-
+	var prevTime, currTime int64
 	var sender net.Addr
 	var packet Packet
+	var delta float32
 	var err error
 
-	tick := time.NewTicker(time.Second / 30)
-
 	for {
-		select {
-		case <-tick.C:
-			c.Update(delta)
+		currTime = time.Now().UnixNano()
+		delta = float32(currTime-prevTime) / float32(time.Second)
+		prevTime = currTime
 
-			sender, packet, err = c.Recv()
-			if err != nil {
-				return
-			}
-
-			c.Count++
-
-			_, err = c.Send(sender, packet)
-
-			if err != nil {
-				return
-			}
+		sender, packet, err = c.Recv()
+		if err != nil {
+			t.Fatal(err)
 		}
+
+		_, err = c.Send(sender, packet)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c.Update(delta)
 	}
 }
 

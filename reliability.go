@@ -6,6 +6,10 @@ package xudp
 // Maximum packet sequence value.	
 const MaxSequence = 1<<32 - 1
 
+// A PacketHandler is used to notify the host of
+// ACK'ed or lost packets by their sequence number.
+type PacketHandler func(sequence uint32)
+
 // isMoreRecent checks if sequence a is newer than sequence b,
 // while taking integer overflow into account.
 func isMoreRecent(a, b uint32) bool {
@@ -23,25 +27,27 @@ func bitIndex(sequence, ack uint32) uint32 {
 
 // Reliability implements the algorithms needed to make a reliable connection
 // reliable. This means it manages sent, received, pending ACKs and ACK'ed
-// packet queues. In addtion, it tracks bandwidth use and rount trip timing.
+// packet queues. In addtion, it tracks bandwidth use and round trip timing.
 type Reliability struct {
-	sentQueue       packetQueue // Sent packets used to calculate sent bandwidth.
-	pendingAckQueue packetQueue // Sent packets which have not been acked yet.
-	recvQueue       packetQueue // Received packets used to determine acks to send.
-	ackedQueue      packetQueue // ACK'ed packets.
-	Acks            []uint32    // ACK'ed packets from last set of packet receives.
-	SentPackets     uint64      // Number of packets sent.
-	RecvPackets     uint64      // Number of packets received.
-	SentBytes       uint64      // Number of bytes sent.
-	RecvBytes       uint64      // Number of bytes received.
-	LostPackets     uint64      // Number of packets lost.
-	AckedPackets    uint64      // Number of packets ACK'ed.
-	LocalSequence   uint32      // Local sequence number for most recently sent packet.
-	RemoteSequence  uint32      // Remote sequence number for most recently received packet.
-	SentBandwidth   float32     // Approximate sent bandwidth over the last second.
-	AckedBandwidth  float32     // Approximate ACK'ed bandwidth over the last second.
-	RTT             float32     // Estimated round trip time.
-	RTTMax          float32     // Maximum expected round trip time.
+	OnAcked         PacketHandler // Notify the host when a specific packet is ACK'ed.
+	OnLost          PacketHandler // Notify the host when a specific packet is lost.
+	sentQueue       packetQueue   // Sent packets used to calculate sent bandwidth.
+	pendingAckQueue packetQueue   // Sent packets which have not been acked yet.
+	recvQueue       packetQueue   // Received packets used to determine acks to send.
+	ackedQueue      packetQueue   // ACK'ed packets.
+	Acks            []uint32      // ACK'ed packets from last set of packet receives.
+	SentPackets     uint64        // Number of packets sent.
+	RecvPackets     uint64        // Number of packets received.
+	SentBytes       uint64        // Number of bytes sent.
+	RecvBytes       uint64        // Number of bytes received.
+	LostPackets     uint64        // Number of packets lost.
+	AckedPackets    uint64        // Number of packets ACK'ed.
+	LocalSequence   uint32        // Local sequence number for most recently sent packet.
+	RemoteSequence  uint32        // Remote sequence number for most recently received packet.
+	SentBandwidth   float32       // Approximate sent bandwidth over the last second.
+	AckedBandwidth  float32       // Approximate ACK'ed bandwidth over the last second.
+	RTT             float32       // Estimated round trip time.
+	RTTMax          float32       // Maximum expected round trip time.
 }
 
 // NewReliability creates a new reliability instance.
@@ -141,6 +147,10 @@ func (r *Reliability) processAck(ack, vector uint32) {
 		r.AckedPackets++
 		r.pendingAckQueue.RemoveAt(i)
 		i--
+
+		if r.OnAcked != nil {
+			r.OnAcked(pd.sequence)
+		}
 	}
 }
 
@@ -199,6 +209,10 @@ func (r *Reliability) updateQueues() {
 	}
 
 	for len(r.pendingAckQueue) > 0 && r.pendingAckQueue[0].time > threshold {
+		if r.OnLost != nil {
+			r.OnLost(r.pendingAckQueue[0].sequence)
+		}
+
 		r.pendingAckQueue = r.pendingAckQueue[1:]
 		r.LostPackets++
 	}
