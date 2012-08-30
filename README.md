@@ -10,15 +10,18 @@ fast transfer of time sensitive data is of paramount importance.
 Features include:
 
 * IPv4 and IPv6 support.
-* NAT punch-through: Reliable identification of peers behind the same
-  public IP/NAT setup.
 * Highly redundant reception acknowledgement by piggybacking multiple
   ACKs on regular data packets.
 * Expose event handlers for cases where indivual packets are lost or ACK'ed.
   This allows the host application to implement resending of lost packets.
-  Our library does not do this, because this behaviour is the reason why
-  TCP is slow. We therefor leave it to the host application to determine
-  what to do when packets are lost.
+  Our library does not do this for performance reasons. To be more
+  precise: when TCP detects a packet loss, it stops the sending of
+  everything else until the lost packet has been re-sent and ACK'ed by
+  the other end. For applications where time-sensitive data should
+  go through as fast as possible, this is very much not what we want.
+  We therefor leave it to the host application to determine
+  what to do when packets are lost. It can resend packets selectively
+  while not preventing the reception of remaining data.
 
 
 ### Usage
