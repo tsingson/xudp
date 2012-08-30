@@ -66,6 +66,8 @@ func TestQueueInsertWrapped(t *testing.T) {
 	}
 }
 
+// isQueueSorted tests if the given packet queue is sorted
+// by packet sequence number.
 func isQueueSorted(q packetQueue) bool {
 	if len(q) < 2 {
 		return true
