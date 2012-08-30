@@ -21,8 +21,8 @@ var (
 type Connection struct {
 	*Reliability
 	buf        Packet         // Temporary receive buffer.
-	udp        net.PacketConn // Sockets underlying connection.
-	protocolId uint32         // Protocol ID identifying our packets.
+	udp        net.PacketConn // Underlying socket.
+	protocolId uint32         // Protocol Id identifying our packets.
 }
 
 // NewConnection creates a new connection.

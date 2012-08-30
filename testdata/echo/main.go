@@ -16,10 +16,8 @@ From this point on, both will simply bounce a random packet payload
 back and forth between them until one of the programs is stopped.
 
 The speed of the packet transfer is limited to our hypothetical game loop.
-It is set to 30 frames per second. This avgs we send/recv data at this
-same rate. loop() contains timers which govern the progression of each frame.
-Play with the ticker timeouts to increase or decrease the transfer speed.
-Remove the timers to just go all out.
+It is set to 30 frames per second. This means we send/recv data at this
+same rate.
 */
 package main
 
