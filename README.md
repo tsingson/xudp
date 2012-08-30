@@ -1,5 +1,7 @@
 ## xudp
 
+**Note**: This needs more testing.
+
 XUDP offers an API for extended UDP networking.
 
 The point of this API is to offer persistent, reliable two-way communication
@@ -33,6 +35,9 @@ What do we not support:
   level abstractions that are best left to the host application, because
   networking requirements are all very different from one case to the next.
 
+The API is still pretty low level and in order to use it in a program,
+one likely has to write a fair amount of boiler plate, but this api at least
+takes care of the most basic of requirements.
 
 Much of the code in this package is ported from the guides published [here][1]
 
