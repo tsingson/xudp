@@ -29,7 +29,12 @@ func NewPacket(payload []byte) Packet {
 }
 
 // SetHeader sets al packet header fields.
+// The packet must have a length of at least XUDPHeaderSize.
 func (p Packet) SetHeader(proto, sequence, ack, vector uint32) {
+	if len(p) < XUDPHeaderSize {
+		return
+	}
+
 	p[0] = byte(proto >> 24)
 	p[1] = byte(proto >> 16)
 	p[2] = byte(proto >> 8)

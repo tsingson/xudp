@@ -91,8 +91,8 @@ func TestprocessAck1(t *testing.T) {
 	r.AckedPackets = 0
 	r.processAck(32, 0xffffffff)
 
-	if len(r.acks) != 33 {
-		t.Fatalf("acks size mismatch: Want 33, got %d", len(r.acks))
+	if len(r.Acks) != 33 {
+		t.Fatalf("acks size mismatch: Want 33, got %d", len(r.Acks))
 	}
 
 	if r.AckedPackets != 33 {
@@ -111,8 +111,8 @@ func TestprocessAck1(t *testing.T) {
 		t.Fatalf("ackedQueueis not sorted.")
 	}
 
-	for i := range r.acks {
-		if r.acks[i] != uint32(i) {
+	for i := range r.Acks {
+		if r.Acks[i] != uint32(i) {
 			t.Fatalf("ack %d mismatch.", i)
 		}
 	}
@@ -136,8 +136,8 @@ func TestprocessAck2(t *testing.T) {
 	r.processAck(32, 0x0000ffff)
 
 	n := 17
-	if len(r.acks) != n {
-		t.Fatalf("acks size mismatch: Want %d, got %d", n, len(r.acks))
+	if len(r.Acks) != n {
+		t.Fatalf("acks size mismatch: Want %d, got %d", n, len(r.Acks))
 	}
 
 	if r.AckedPackets != uint64(n) {
@@ -169,8 +169,8 @@ func TestprocessAck2(t *testing.T) {
 		}
 	}
 
-	for i := range r.acks {
-		if r.acks[i] != uint32(i)+16 {
+	for i := range r.Acks {
+		if r.Acks[i] != uint32(i)+16 {
 			t.Fatalf("ack %d mismatch.", i)
 		}
 	}
@@ -188,8 +188,8 @@ func TestprocessAck3(t *testing.T) {
 	r.processAck(48, 0xffff0000)
 
 	n := 16
-	if len(r.acks) != n {
-		t.Fatalf("acks size mismatch: Want %d, got %d", n, len(r.acks))
+	if len(r.Acks) != n {
+		t.Fatalf("acks size mismatch: Want %d, got %d", n, len(r.Acks))
 	}
 
 	if r.AckedPackets != uint64(n) {
@@ -220,8 +220,8 @@ func TestprocessAck3(t *testing.T) {
 		}
 	}
 
-	for i := range r.acks {
-		if r.acks[i] != uint32(i)+16 {
+	for i := range r.Acks {
+		if r.Acks[i] != uint32(i)+16 {
 			t.Fatalf("ack %d mismatch.", i)
 		}
 	}

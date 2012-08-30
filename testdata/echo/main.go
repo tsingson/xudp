@@ -8,19 +8,18 @@ We launch the program twice. Once with just a port. This will serve
 as the 'server'. The second gets the target address of the server and
 will function as a 'client'. It will initiate the echo loop.
 
-	$ go run main.go -p 12345
-	$ go run main.go -p 12346 -a :12345
+	$ go build
+	$ ./echo -p 30000
+	$ ./echo -p 30001 -a :30000
 
-From this point on, both will simply bounce the same packet payload
+From this point on, both will simply bounce a random packet payload
 back and forth between them until one of the programs is stopped.
 
 The speed of the packet transfer is limited to our hypothetical game loop.
-It is set to 60 frames per second. This means we send/recv data at this
+It is set to 30 frames per second. This means we send/recv data at this
 same rate. loop() contains timers which govern the progression of each frame.
 Play with the ticker timeouts to increase or decrease the transfer speed.
-
-It should be noted that high through put is not the primary goal of the
-XUDP package. Reliability and fast access to time sensitive data is.
+Remove the timers to just go all out.
 */
 package main
 
@@ -28,149 +27,175 @@ import (
 	"flag"
 	"fmt"
 	"github.com/jteeuwen/xudp"
+	"math/rand"
 	"net"
 	"os"
 	"time"
 )
 
 const (
-	MTU        = 1400
-	ProtocolId = 0xBADBEEF
-)
-
-var (
-	address net.Addr
-	port = flag.Int("p", 0, "The port number on which to listen on.")
-	framerate = flag.Uint("fps", 60, "Frame rate for the game loop simulation.")
-	payload = make([]byte, MTU-xudp.UDPHeaderSize-xudp.XUDPHeaderSize)
-	units   = []byte{' ', 'K', 'M', 'G', 'T', 'P', 'Y'}
+	MTU         = 1400
+	ProtocolId  = 0xBADBEEF
+	FrameRate   = 30
+	DeltaTime   = 1.0 / FrameRate
+	PayloadSize = MTU - xudp.UDPHeaderSize - xudp.XUDPHeaderSize
 )
 
 func main() {
-	parseArgs()
+	port, address := parseArgs()
 
-	conn := initConn()
+	conn := initConn(port)
 	defer conn.Close()
 
-	if address != nil {
-		// If we have a target address, we should
-		// initiate the echo loop.
-		conn.Send(address, xudp.NewPacket(payload))
-	}
-
-	loop(conn)
+	loop(conn, address)
 }
 
 // parseArgs parses commandline arguments.
-func parseArgs() {
-	straddr := flag.String("a", "", "The server address to connect to. Only needed for client mode.")
+func parseArgs() (int, net.Addr) {
+	port := flag.Int("p", 30000, "Port to listen on for connections.")
+	addr := flag.String("a", "", "The server address to connect to. Only needed for client mode.")
 	flag.Parse()
 
-	if *port == 0 && len(*straddr) == 0 {
+	if *port == 0 && len(*addr) == 0 {
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	if len(*straddr) > 0 {
-		var err error
-		address, err = net.ResolveUDPAddr("udp", *straddr)
+	if len(*addr) > 0 {
+		address, err := net.ResolveUDPAddr("udp", *addr)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "initConn: %v\n", err)
 			os.Exit(1)
 		}
+
+		return *port, address
 	}
+
+	return *port, nil
 }
 
 // initConn initializes our connection.
-func initConn() *xudp.Connection {
+func initConn(port int) *xudp.Connection {
 	conn := xudp.NewConnection(MTU, ProtocolId)
-	err := conn.Open(*port)
+	err := conn.Open(port)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "initConn: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("Listening on port %d...\n", *port)
+	fmt.Printf("Listening on port %d...\n", port)
 	return conn
 }
 
 // The main 'game' loop.
-func loop(c *xudp.Connection) {
-	var sender net.Addr
-	var packet xudp.Packet
-	var err error
+func loop(c *xudp.Connection, address net.Addr) {
+	var payload []byte
+	var ok bool
 
-	delta := 1.0 / float32(*framerate)
-	statTicker := time.NewTicker(time.Second)
-	frameTicker := time.NewTicker(time.Second / time.Duration(*framerate))
-	start := time.Now().Unix()
+	// Track average sent/ACK'ed bandwidth
+	meanSent := make([]float32, 0, 100)
+	meanAcked := make([]float32, 0, 100)
+	frameTick := time.NewTicker(time.Second / FrameRate)
+	statTick := time.NewTicker(time.Second)
+	recv := readLoop(c)
+
+	if address != nil {
+		c.Send(address, xudp.NewPacket([]byte("Hello")))
+	}
 
 	for {
 		select {
-		case <- statTicker.C:
-			stat(c, time.Now().Unix() - start)
+		case <-frameTick.C:
+			address, ok = <-recv
 
-		case <- frameTicker.C:
-			c.Update(delta)
-			sender, packet, err = c.Recv()
-
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Recv: %v\n", err)
-				return
+			if !ok {
+				break
 			}
 
-			_, err = c.Send(sender, packet)
+			payload = make([]byte, rand.Int31n(PayloadSize))
+			c.Send(address, xudp.NewPacket(payload))
+			c.Update(DeltaTime)
 
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Send: %v\n", err)
-				return
+		case <-statTick.C:
+			rtt := c.RTT
+			sp := c.SentPackets
+			ap := c.AckedPackets
+			lp := c.LostPackets
+
+			// Update list for average sent bandwidth
+			if len(meanSent) < cap(meanSent) {
+				meanSent = append(meanSent, c.SentBandwidth)
+			} else {
+				copy(meanSent[1:], meanSent)
+				meanSent[0] = c.SentBandwidth
 			}
+
+			// Update list for average ACK'ed bandwidth
+			if len(meanAcked) < cap(meanAcked) {
+				meanAcked = append(meanAcked, c.AckedBandwidth)
+			} else {
+				copy(meanAcked[1:], meanAcked)
+				meanAcked[0] = c.AckedBandwidth
+			}
+
+			var lr float32
+
+			if sp > 0 {
+				lr = float32(lp) / float32(sp) * 100.0
+			}
+
+			fmt.Printf(
+				"rtt %.1fms, sent %d, acked %d, lost %d (%.1f%%), sent bandwidth = %.1fkbps, acked bandwidth = %.1fkbps\n",
+				rtt*1000.0, sp, ap, lp, lr, mean(meanSent), mean(meanAcked))
 		}
 	}
 }
 
-// stat prints some connection statistics.
-func stat(c *xudp.Connection, delta int64) {
-	df := float64(1)
-	
-	if delta > 0 {
-		df = float64(delta)
-	}
+// readLoop reads data from the connection and yields it through the
+// returned channel. This allows us to make the read a non-blocking operation.
+//
+// In this particular program, we do not care about the actual payload.
+// Just the sender's address.
+func readLoop(c *xudp.Connection) <-chan net.Addr {
+	ch := make(chan net.Addr)
 
-	rp := c.RecvPackets
-	rb := pretty(c.RecvBytes)
-	rbps := prettyf(float64(c.RecvBytes)/df)
+	go func() {
+		defer close(ch)
 
-	sp := c.SentPackets
-	sb := pretty(c.SentBytes)
-	sbps := prettyf(float64(c.SentBytes)/df)
+		for {
+			address, _, err := c.Recv()
 
-	fmt.Printf("in: %d @ %s - %s/s     out: %d @ %s - %s/s\n",
-		rp, rb, rbps, sp, sb, sbps)
+			if err != nil {
+				return
+			}
+
+			ch <- address
+		}
+	}()
+
+	return ch
 }
 
-// pretty returns a 'pretty' version of the given byte size.
-func pretty(b uint64) string {
-	var u int
+// mean returns the average of all values in the given list.
+func mean(list []float32) float64 {
+	switch len(list) {
+	case 0:
+		return 0
 
-	for b >= 1024 {
-		b /= 1024
-		u++
+	case 1:
+		return float64(list[0])
+
+	default:
+		var total float64
+
+		for _, v := range list {
+			total += float64(v)
+		}
+
+		return total / float64(len(list))
 	}
 
-	return fmt.Sprintf("%d %cb", b, units[u])
-}
-
-// prettyf returns a 'pretty' version of the given byte size.
-func prettyf(b float64) string {
-	var u int
-
-	for b >= 1024 {
-		b /= 1024
-		u++
-	}
-
-	return fmt.Sprintf("%3.2f %cb", b, units[u])
+	panic("unreachable")
 }

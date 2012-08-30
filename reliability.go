@@ -29,7 +29,7 @@ type Reliability struct {
 	pendingAckQueue packetQueue // Sent packets which have not been acked yet.
 	recvQueue       packetQueue // Received packets used to determine acks to send.
 	ackedQueue      packetQueue // ACK'ed packets.
-	acks            []uint32    // ACK'ed packets from last set of packet receives.
+	Acks            []uint32    // ACK'ed packets from last set of packet receives.
 	SentPackets     uint64      // Number of packets sent.
 	RecvPackets     uint64      // Number of packets received.
 	SentBytes       uint64      // Number of bytes sent.
@@ -137,7 +137,7 @@ func (r *Reliability) processAck(ack, vector uint32) {
 
 		r.RTT += (pd.time - r.RTT) * 0.1
 		r.ackedQueue.Insert(pd)
-		r.acks = append(r.acks, pd.sequence)
+		r.Acks = append(r.Acks, pd.sequence)
 		r.AckedPackets++
 		r.pendingAckQueue.RemoveAt(i)
 		i--
@@ -146,7 +146,7 @@ func (r *Reliability) processAck(ack, vector uint32) {
 
 // Update takes frame time delta and updates packet timeouts with it.
 func (r *Reliability) Update(delta float32) {
-	r.acks = r.acks[:0]
+	r.Acks = r.Acks[:0]
 	r.advanceQueueTime(delta)
 	r.updateQueues()
 	r.updateStats()
@@ -236,7 +236,7 @@ func (r *Reliability) updateStats() {
 
 // Reset sets the Reliability system to its initial state.
 func (r *Reliability) Reset() {
-	r.acks = r.acks[:0]
+	r.Acks = r.Acks[:0]
 	r.sentQueue = r.sentQueue[:0]
 	r.recvQueue = r.recvQueue[:0]
 	r.pendingAckQueue = r.pendingAckQueue[:0]

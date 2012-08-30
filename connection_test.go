@@ -4,7 +4,6 @@
 package xudp
 
 import (
-	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -46,20 +45,12 @@ func TestConnection(t *testing.T) {
 
 	for {
 		select {
-		case <-time.After(time.Second * 5):
+		case <-time.After(time.Second):
 			bob.Close()
 			jane.Close()
-			stat(bob)
-			stat(jane)
 			return
 		}
 	}
-}
-
-func stat(c *TestConn) {
-	fmt.Printf("Sent: %d, Recv: %d, ACK: %d, Lost: %d, RX: %f, AX: %f, RTT: %f\n",
-		c.SentPackets, c.RecvPackets, c.AckedPackets, c.LostPackets,
-		c.SentBandwidth, c.AckedBandwidth, c.RTT)
 }
 
 func echo(t *testing.T, c *TestConn) {

@@ -59,6 +59,8 @@ func NewConnection(mtu, protocolId uint32) *Connection {
 	return c
 }
 
+func (c *Connection) IsOpen() bool { return c.udp != nil }
+
 // Open opens the connection on the given port number.
 func (c *Connection) Open(port int) (err error) {
 	if c.udp != nil {
