@@ -48,7 +48,7 @@ type Reliability struct {
 // NewReliability creates a new reliability instance.
 func NewReliability() *Reliability {
 	r := new(Reliability)
-	r.Reset()
+	r.reset()
 	return r
 }
 
@@ -115,7 +115,7 @@ func (r *Reliability) Update(delta float32) {
 }
 
 // Reset sets the Reliability system to its initial state.
-func (r *Reliability) Reset() {
+func (r *Reliability) reset() {
 	r.sentQueue = r.sentQueue[:0]
 	r.recvQueue = r.recvQueue[:0]
 	r.pendingAckQueue = r.pendingAckQueue[:0]
