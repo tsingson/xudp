@@ -21,7 +21,7 @@ type Connection struct {
 	*Reliability
 	buf        Packet         // Temporary receive buffer.
 	udp        net.PacketConn // Sockets underlying connection.
-	ProtocolId uint32         // Protocol ID identifying our packets.
+	protocolId uint32         // Protocol ID identifying our packets.
 }
 
 // NewConnection creates a new connection.
@@ -54,7 +54,7 @@ type Connection struct {
 func NewConnection(mtu, protocolId uint32) *Connection {
 	c := new(Connection)
 	c.Reliability = NewReliability()
-	c.ProtocolId = protocolId
+	c.protocolId = protocolId
 	c.buf = make(Packet, mtu-UDPHeaderSize)
 	return c
 }
@@ -90,17 +90,19 @@ func (c *Connection) Close() (err error) {
 	return
 }
 
-// Send sends the given packet to the specified destination.
-func (c *Connection) Send(addr net.Addr, packet Packet) (size int, err error) {
+// Send sends the given payload to the specified destination.
+func (c *Connection) Send(addr net.Addr, payload []byte) (size int, err error) {
 	if c.udp == nil {
 		return 0, ErrConnectionClosed
 	}
 
-	if len(packet) > len(c.buf) {
+	if len(payload) > len(c.buf)-XUDPHeaderSize {
 		return 0, ErrPacketSize
 	}
 
-	packet.SetHeader(c.ProtocolId, c.LocalSequence, c.RemoteSequence, c.AckVector())
+	packet := NewPacket(payload)
+	packet.SetHeader(c.protocolId, c.LocalSequence,
+		c.RemoteSequence, c.AckVector())
 
 	size, err = c.udp.WriteTo(packet, addr)
 
@@ -112,8 +114,9 @@ func (c *Connection) Send(addr net.Addr, packet Packet) (size int, err error) {
 	return
 }
 
-// Recv receives a new packet. This is a blocking operation.
-func (c *Connection) Recv() (addr net.Addr, packet Packet, err error) {
+// Recv receives a new payload. It takes care of reassembling
+// fragmented packets when necessary. This is a blocking operation.
+func (c *Connection) Recv() (addr net.Addr, payload []byte, err error) {
 	if c.udp == nil {
 		return nil, nil, ErrConnectionClosed
 	}
@@ -123,13 +126,18 @@ func (c *Connection) Recv() (addr net.Addr, packet Packet, err error) {
 		return
 	}
 
-	if size < XUDPHeaderSize || c.buf.Protocol() != c.ProtocolId {
+	if size < XUDPHeaderSize || c.buf.Protocol() != c.protocolId {
 		return // Not enough data or not meant for us.
 	}
 
-	packet = make(Packet, size)
-	copy(packet, c.buf)
+	c.PacketRecv(c.buf.Sequence(), c.buf.Ack(), c.buf.AckVector(), uint32(size))
 
-	c.PacketRecv(packet.Sequence(), packet.Ack(), packet.AckVector(), uint32(size))
+	size -= XUDPHeaderSize
+	if size <= 0 {
+		return // No payload data.
+	}
+
+	payload = make([]byte, size)
+	copy(payload, c.buf.Payload())
 	return
 }

@@ -4,10 +4,10 @@ XUDP offers an API for extended UDP networking.
 
 The point of this API is to offer persistent, reliable two-way communication
 without the overhead imposed by the TCP protocol. This makes it particularly
-useful for environments like multiplayer video games, where low latency and is
+useful for environments like multiplayer video games, where low latency and
 fast transfer of time sensitive data is of paramount importance.
 
-Features include:
+What we support:
 
 * IPv4 and IPv6 support.
 * Highly redundant reception acknowledgement by piggybacking multiple
@@ -23,9 +23,21 @@ Features include:
   what to do when packets are lost. It can resend packets selectively
   while not preventing the reception of remaining data.
 
-This package explicitely does **not** guarantee in-order reception
-of packets, for the same reason described in the feature point on
-event handlers.
+
+What do we not support:
+
+* This package explicitely does **not** guarantee in-order reception
+  of packets, for the same reason described in the feature point on
+  event handlers.
+* Packet fragmentation, encryption or compression. These are all high
+  level abstractions that are best left to the host application, because
+  networking requirements are all very different from one case to the next.
+
+
+Much of the code in this package is ported from the guides published [here][1]
+
+[1]: http://gafferongames.com/networking-for-game-programmers/udp-vs-tcp/
+
 
 ### Usage
 

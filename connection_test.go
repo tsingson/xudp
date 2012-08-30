@@ -37,7 +37,7 @@ func TestConnection(t *testing.T) {
 	go echo(t, bob)
 	go echo(t, jane)
 
-	jane.Send(bob.Addr, NewPacket([]byte("Hi")))
+	jane.Send(bob.Addr, []byte("Hello, World"))
 
 	for {
 		select {
@@ -52,7 +52,7 @@ func TestConnection(t *testing.T) {
 func echo(t *testing.T, c *TestConn) {
 	var prevTime, currTime int64
 	var sender net.Addr
-	var packet Packet
+	var payload []byte
 	var delta float32
 	var err error
 
@@ -61,12 +61,12 @@ func echo(t *testing.T, c *TestConn) {
 		delta = float32(currTime-prevTime) / float32(time.Second)
 		prevTime = currTime
 
-		sender, packet, err = c.Recv()
+		sender, payload, err = c.Recv()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = c.Send(sender, packet)
+		_, err = c.Send(sender, payload)
 
 		if err != nil {
 			t.Fatal(err)

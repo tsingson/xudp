@@ -90,7 +90,6 @@ func initConn(port int) *xudp.Connection {
 
 // The main 'game' loop.
 func loop(c *xudp.Connection, address net.Addr) {
-	var payload []byte
 	var prevTime, currTime int64
 	var delta float32
 	var ok bool
@@ -112,7 +111,7 @@ func loop(c *xudp.Connection, address net.Addr) {
 	// If we have an address, we are the 'client' and should
 	// initiate the echo loop.
 	if address != nil {
-		c.Send(address, xudp.NewPacket([]byte("Hello")))
+		c.Send(address, []byte("Hello"))
 	}
 
 	for {
@@ -127,8 +126,7 @@ func loop(c *xudp.Connection, address net.Addr) {
 				break
 			}
 
-			payload = make([]byte, rand.Int31n(PayloadSize))
-			c.Send(address, xudp.NewPacket(payload))
+			c.Send(address, make([]byte, rand.Int31n(PayloadSize)))
 			c.Update(delta)
 
 		case <-statTick.C:
