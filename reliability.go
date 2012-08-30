@@ -6,10 +6,6 @@ package xudp
 // Maximum packet sequence value.	
 const MaxSequence = 1<<32 - 1
 
-// A PacketHandler is used to notify the host of
-// ACK'ed or lost packets by their sequence number.
-type PacketHandler func(sequence uint32)
-
 // isMoreRecent checks if sequence a is newer than sequence b,
 // while taking integer overflow into account.
 func isMoreRecent(a, b uint32) bool {

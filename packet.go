@@ -17,6 +17,10 @@ const (
 	XUDPHeaderSize = 16
 )
 
+// A PacketHandler is used to notify the host of
+// ACK'ed or lost packets by their sequence number.
+type PacketHandler func(sequence uint32)
+
 // A packet holds data for a single UDP datagram.
 // This includes our own XUDP header and the payload.
 type Packet []byte
