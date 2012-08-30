@@ -108,7 +108,7 @@ func (c *Connection) Send(addr net.Addr, packet Packet) (size int, err error) {
 		return
 	}
 
-	c.PacketSent(size)
+	c.PacketSent(uint32(size))
 	return
 }
 

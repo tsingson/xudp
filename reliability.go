@@ -54,10 +54,10 @@ func NewReliability() *Reliability {
 }
 
 // PacketSent is called whenever a new packet is sent.
-func (r *Reliability) PacketSent(size int) {
+func (r *Reliability) PacketSent(size uint32) {
 	var pd packetData
 	pd.sequence = r.LocalSequence
-	pd.size = uint32(size)
+	pd.size = size
 
 	r.sentQueue = append(r.sentQueue, pd)
 	r.pendingAckQueue = append(r.pendingAckQueue, pd)
