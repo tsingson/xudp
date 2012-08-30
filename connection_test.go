@@ -63,12 +63,12 @@ func echo(t *testing.T, c *TestConn) {
 
 		sender, payload, err = c.Recv()
 		if err != nil {
-			t.Fatal(err)
+			return
 		}
 
 		err = c.Send(sender, payload)
 		if err != nil {
-			t.Fatal(err)
+			return
 		}
 
 		c.Update(delta)
