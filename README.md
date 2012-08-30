@@ -23,10 +23,9 @@ Features include:
   what to do when packets are lost. It can resend packets selectively
   while not preventing the reception of remaining data.
 
-
 This package explicitely does **not** guarantee in-order reception
-of packets, for the same reason described in the previous point.
-
+of packets, for the same reason described in the feature point on
+event handlers.
 
 ### Usage
 
