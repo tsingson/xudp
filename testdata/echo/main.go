@@ -113,17 +113,19 @@ func loop(c *xudp.Connection, address net.Addr) {
 	}
 
 	for {
-		// Compute new delta time.
-		currTime = time.Now().UnixNano()
-		delta = float32(currTime-prevTime) / float32(time.Second)
-		prevTime = currTime
-
 		select {
 		case <-frameTick.C:
+			// Compute new delta time.
+			currTime = time.Now().UnixNano()
+			delta = float32(currTime-prevTime) / float32(time.Second)
+			prevTime = currTime
+
+			// Receive next message.
 			if address, ok = <-recv; !ok {
 				break
 			}
 
+			// Send a random payload back.
 			c.Send(address, make([]byte, rand.Int31n(PayloadSize)))
 			c.Update(delta)
 
@@ -193,13 +195,13 @@ func stat(c *xudp.Connection, sent, acked *[]float32) {
 }
 
 // avg returns the average of all values in the given list.
-func avg(list []float32) float64 {
+func avg(list []float32) float32 {
 	switch len(list) {
 	case 0:
 		return 0
 
 	case 1:
-		return float64(list[0])
+		return list[0]
 
 	default:
 		var total float64
@@ -208,7 +210,7 @@ func avg(list []float32) float64 {
 			total += float64(v)
 		}
 
-		return total / float64(len(list))
+		return float32(total / float64(len(list)))
 	}
 
 	panic("unreachable")
