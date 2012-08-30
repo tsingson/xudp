@@ -126,7 +126,7 @@ func TestprocessAck2(t *testing.T) {
 	r.processAck(32, 0x0000ffff)
 
 	n := 17
-	if r.AckedPackets != uint64(n) {
+	if r.AckedPackets != uint32(n) {
 		t.Fatalf("AckedPackets mismatch: Want %d, got %d", n, r.AckedPackets)
 	}
 
@@ -168,7 +168,7 @@ func TestprocessAck3(t *testing.T) {
 	r.processAck(48, 0xffff0000)
 
 	n := 16
-	if r.AckedPackets != uint64(n) {
+	if r.AckedPackets != uint32(n) {
 		t.Fatalf("AckedPackets mismatch: Want %d, got %d", n, r.AckedPackets)
 	}
 

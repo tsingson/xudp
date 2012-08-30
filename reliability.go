@@ -31,12 +31,12 @@ type Reliability struct {
 	pendingAckQueue packetQueue   // Sent packets which have not been acked yet.
 	recvQueue       packetQueue   // Received packets used to determine acks to send.
 	ackedQueue      packetQueue   // ACK'ed packets.
-	SentPackets     uint64        // Number of packets sent.
-	RecvPackets     uint64        // Number of packets received.
 	SentBytes       uint64        // Number of bytes sent.
 	RecvBytes       uint64        // Number of bytes received.
-	LostPackets     uint64        // Number of packets lost.
-	AckedPackets    uint64        // Number of packets ACK'ed.
+	SentPackets     uint32        // Number of packets sent.
+	RecvPackets     uint32        // Number of packets received.
+	LostPackets     uint32        // Number of packets lost.
+	AckedPackets    uint32        // Number of packets ACK'ed.
 	LocalSequence   uint32        // Local sequence number for most recently sent packet.
 	RemoteSequence  uint32        // Remote sequence number for most recently received packet.
 	SentBandwidth   float32       // Approximate sent bandwidth over the last second.
