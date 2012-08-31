@@ -15,8 +15,8 @@ const (
 )
 
 var (
-	bob     = New(MTU, ProtocolId, 12345)
-	jane    = New(MTU, ProtocolId, 12346)
+	bob     = New(MTU, ProtocolId, 12355)
+	jane    = New(MTU, ProtocolId, 12356)
 	bobAddr = &net.UDPAddr{Port: bob.port}
 )
 
