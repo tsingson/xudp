@@ -1,7 +1,7 @@
 // This file is subject to a 1-clause BSD license.
 // Its contents can be found in the enclosed LICENSE file.
 
-package xudp
+package ident
 
 import (
 	"net"
@@ -14,21 +14,10 @@ const (
 	ProtocolId = 0xBADBEEF
 )
 
-type TestConn struct {
-	*Connection
-	Addr *net.UDPAddr
-}
-
 var (
-	bob = &TestConn{
-		Connection: New(MTU, ProtocolId),
-		Addr:       &net.UDPAddr{Port: 12345},
-	}
-
-	jane = &TestConn{
-		Connection: New(MTU, ProtocolId),
-		Addr:       &net.UDPAddr{Port: 12346},
-	}
+	bob     = New(MTU, ProtocolId, 12345)
+	jane    = New(MTU, ProtocolId, 12346)
+	bobAddr = &net.UDPAddr{Port: bob.port}
 )
 
 func TestConnection(t *testing.T) {
@@ -37,7 +26,7 @@ func TestConnection(t *testing.T) {
 	go echo(t, bob)
 	go echo(t, jane)
 
-	jane.Send(bob.Addr, []byte("Hello, World"))
+	jane.Send(bobAddr, []byte("Hello, World"))
 
 	for {
 		select {
@@ -49,9 +38,9 @@ func TestConnection(t *testing.T) {
 	}
 }
 
-func echo(t *testing.T, c *TestConn) {
+func echo(t *testing.T, c *Connection) {
 	var prevTime, currTime int64
-	var sender net.Addr
+	var sender *Endpoint
 	var payload []byte
 	var delta float32
 	var err error
@@ -66,7 +55,7 @@ func echo(t *testing.T, c *TestConn) {
 			return
 		}
 
-		err = c.Send(sender, payload)
+		err = c.Send(sender.Addr, payload)
 		if err != nil {
 			return
 		}
@@ -76,13 +65,13 @@ func echo(t *testing.T, c *TestConn) {
 }
 
 func initConnections(t *testing.T) {
-	err := bob.Open(bob.Addr.Port)
+	err := bob.Open()
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = jane.Open(jane.Addr.Port)
+	err = jane.Open()
 
 	if err != nil {
 		bob.Close()

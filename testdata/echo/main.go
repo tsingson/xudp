@@ -74,7 +74,7 @@ func parseArgs() (int, net.Addr) {
 
 // initConn initializes our connection.
 func initConn(port int) *xudp.Connection {
-	conn := xudp.NewConnection(MTU, ProtocolId)
+	conn := xudp.New(MTU, ProtocolId)
 	err := conn.Open(port)
 
 	if err != nil {

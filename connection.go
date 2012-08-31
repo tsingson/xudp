@@ -25,7 +25,7 @@ type Connection struct {
 	protocolId uint32         // Protocol Id identifying our packets.
 }
 
-// NewConnection creates a new connection.
+// New creates a new connection.
 //
 // MTU defines the maximum size of a single packet in bytes.
 // This includes the UDP and XUDP headers.
@@ -52,7 +52,7 @@ type Connection struct {
 // If an incoming packet does not start with this number, we discard it
 // because it is not meant for us. A 4 byte hash of the name of your
 // program can be a suitable protocol Id.
-func NewConnection(mtu, protocolId uint32) *Connection {
+func New(mtu, protocolId uint32) *Connection {
 	c := new(Connection)
 	c.Reliability = NewReliability()
 	c.protocolId = protocolId
