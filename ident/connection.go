@@ -13,20 +13,20 @@ import (
 type Connection struct {
 	*xudp.Connection
 	peerId PeerId // This connection's peer id.
-	port   int    // Connection's listen port.
 }
 
 // New creates a new connection.
-func New(mtu, protocolId uint32, port int) *Connection {
+func New(mtu, protocolId uint32) *Connection {
 	c := new(Connection)
-	c.port = port
 	c.Connection = xudp.New(mtu, protocolId)
-	c.peerId = NewPeerId(LocalIP(), port)
 	return c
 }
 
-// Open opens the connection on the connection's port number.
-func (c *Connection) Open() (err error) { return c.Connection.Open(c.port) }
+// Open opens the connection on the given port number.
+func (c *Connection) Open(port int) error {
+	c.peerId = NewPeerId(LocalIP(), port)
+	return c.Connection.Open(port)
+}
 
 // Send sends the given payload to the specified destination.
 func (c *Connection) Send(addr net.Addr, payload []byte) (err error) {

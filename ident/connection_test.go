@@ -15,9 +15,8 @@ const (
 )
 
 var (
-	bob     = New(MTU, ProtocolId, 12355)
-	jane    = New(MTU, ProtocolId, 12356)
-	bobAddr = &net.UDPAddr{Port: bob.port}
+	bob  = New(MTU, ProtocolId)
+	jane = New(MTU, ProtocolId)
 )
 
 func TestConnection(t *testing.T) {
@@ -26,7 +25,8 @@ func TestConnection(t *testing.T) {
 	go echo(t, bob)
 	go echo(t, jane)
 
-	jane.Send(bobAddr, []byte("Hello, World"))
+	addr := &net.UDPAddr{Port: 12355}
+	jane.Send(addr, []byte("Hello, World"))
 
 	for {
 		select {
@@ -65,13 +65,13 @@ func echo(t *testing.T, c *Connection) {
 }
 
 func initConnections(t *testing.T) {
-	err := bob.Open()
+	err := bob.Open(12355)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = jane.Open()
+	err = jane.Open(12356)
 
 	if err != nil {
 		bob.Close()
