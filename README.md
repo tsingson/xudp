@@ -40,6 +40,15 @@ Much of the code in this package is ported from the guides published [here][1]
 [1]: http://gafferongames.com/networking-for-game-programmers/udp-vs-tcp/
 
 
+### Extensibility
+
+The package is deliberately kept low level. It should serve as a foundation
+for more appropriate networking code in your own program. You can create
+your own higher level abstraction which embeds xudp.Connection and does any
+additional handling you may require. For an example of this, refer to
+the ident/connection.go file.
+
+
 ### Usage
 
     go get github.com/jteeuwen/xudp
