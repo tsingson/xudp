@@ -2,8 +2,18 @@
 
 This package adds a peer identification layer on top of a basic
 xudp.Connection. It embeds a 32 byte SHA256 hash of the peer's local
-IP and port into each packet. This allows us to accurately identify
-multiple peers sending data from the same NAT router/firewall.
+IP and port into each packet. Combined with the peer's public IP address,
+this allows us to accurately identify multiple peers sending data from the
+same NAT router/firewall.
+
+Getting to the unique peer id can be done through the endpoint
+returned by `Connection.Recv()`.
+
+	endpoint, payload, err := conn.Recv()
+	
+	...
+	
+	peerId := endpoint.String()
 
 
 ### Usage
