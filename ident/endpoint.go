@@ -49,6 +49,10 @@ func NewEndpoint(addr net.Addr, id PeerId) *Endpoint {
 // combined with the endpoint Id. This can be used as a reliable
 // identification key for a given peer.
 func (e *Endpoint) String() string {
+	if e.Addr == nil || e.id == nil {
+		return ""
+	}
+
 	ua, ok := e.Addr.(*net.UDPAddr)
 
 	if !ok {
