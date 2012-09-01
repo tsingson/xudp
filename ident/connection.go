@@ -22,7 +22,12 @@ func New(mtu, protocolId uint32) *Connection {
 	return c
 }
 
-// Open opens the connection on the given port number.
+// PayloadSize returns the maximum size in bytes for a single paket payload.
+func (c *Connection) PayloadSize() int {
+	return c.Connection.PayloadSize() - PeerIdSize
+}
+
+// Open opens the connection on the connection's port number.
 func (c *Connection) Open(port int) error {
 	c.peerId = NewPeerId(LocalIP(), port)
 	return c.Connection.Open(port)
