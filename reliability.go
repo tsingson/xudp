@@ -180,20 +180,24 @@ func (r *Reliability) processAck(ack, vector uint32) {
 func (r *Reliability) advanceQueueTime(delta float32) {
 	var i int
 
-	for i = range r.sentQueue {
-		r.sentQueue[i].time += delta
+	q := r.sentQueue
+	for i = range q {
+		q[i].time += delta
 	}
 
-	for i = range r.recvQueue {
-		r.recvQueue[i].time += delta
+	q = r.recvQueue
+	for i = range q {
+		q[i].time += delta
 	}
 
-	for i = range r.pendingAckQueue {
-		r.pendingAckQueue[i].time += delta
+	q = r.pendingAckQueue
+	for i = range q {
+		q[i].time += delta
 	}
 
-	for i = range r.ackedQueue {
-		r.ackedQueue[i].time += delta
+	q = r.ackedQueue
+	for i = range q {
+		q[i].time += delta
 	}
 }
 
