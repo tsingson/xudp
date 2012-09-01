@@ -36,8 +36,7 @@ type Endpoint struct {
 	id PeerId
 }
 
-// NewEndpoint creates a new endpoint for the given public address
-// and peer id. Leave the id empty if you do not have it yet.
+// NewEndpoint creates a new endpoint for the given public address and peer id.
 func NewEndpoint(addr net.Addr, id PeerId) *Endpoint {
 	e := new(Endpoint)
 	e.Addr = addr
