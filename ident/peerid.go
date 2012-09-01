@@ -29,29 +29,3 @@ func NewPeerId(ip net.IP, port int) PeerId {
 	hm.Write(data)
 	return PeerId(hm.Sum(nil))
 }
-
-// compareHash compares two hashes and returns true if we consider them equal.
-//
-// A constant time comparison is used to prevent timing attacks from
-// being performed. With a normal bytes.Equal(a, b) comparison, an attacker can 
-// time how long this function takes to complete. The longer it takes
-// to return, the more of the hash he knows will be correct. A constant time
-// comparison always runs in the same amount of time, regardless of the
-// hash contents; thus eliminating the timing attack vector.
-func compareHash(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	var v byte
-
-	for i := 0; i < len(a); i++ {
-		v |= a[i] ^ b[i]
-	}
-
-	v = ^v
-	v &= v >> 4
-	v &= v >> 2
-	v &= v >> 1
-	return v == 1
-}
