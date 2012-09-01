@@ -15,12 +15,6 @@ returned by `Connection.Recv()`.
 	
 	peerId := endpoint.String()
 
-**Note**: Because of the inclusion of the 32 byte peer id in each packet,
-the available payload size is reduced. The payload size can be computed
-as follows:
-
-	size := MTU - xudp.UDPHeaderSize - xudp.XUDPHeaderSize - ident.PeerIdSize
-
 
 ### Usage
 
