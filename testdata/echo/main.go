@@ -13,11 +13,9 @@ will function as a 'client'. It will initiate the echo loop.
 	$ ./echo -p 30001 -a :30000
 
 From this point on, both will simply bounce a random packet payload
-back and forth between them until one of the programs is stopped.
+back and forth between them for the duration of one minute.
 
-The speed of the packet transfer is limited to our hypothetical game loop.
-It is set to 30 frames per second. This means we send/recv data at this
-same rate.
+The -cpu flag lets us write CPU profile data to the given file.
 */
 package main
 
@@ -28,23 +26,39 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"runtime/pprof"
 	"time"
 )
 
 const (
-	MTU         = 1400
-	ProtocolId  = 0xBADBEEF
-	FrameRate   = 30
-	PayloadSize = MTU - xudp.UDPHeaderSize - xudp.XUDPHeaderSize
+	MTU        = 1400
+	ProtocolId = 0xBADBEE
 )
+
+var cpu = flag.String("cpu", "", "File name to write CPU profile to.")
 
 func main() {
 	port, address := parseArgs()
 
+	if len(*cpu) > 0 {
+		fd, err := os.Create(*cpu)
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "os.Create: %v\n", err)
+			os.Exit(1)
+		}
+
+		defer fd.Close()
+
+		pprof.StartCPUProfile(fd)
+		defer pprof.StopCPUProfile()
+	}
+
 	conn := initConn(port)
 	defer conn.Close()
 
-	loop(conn, address)
+	go loop(conn, address)
+	<-time.After(time.Minute)
 }
 
 // parseArgs parses commandline arguments.
@@ -90,14 +104,10 @@ func initConn(port int) *xudp.Connection {
 func loop(c *xudp.Connection, address net.Addr) {
 	var prevTime, currTime int64
 	var delta float32
-	var ok bool
 
 	// Track average sent/ACK'ed bandwidth
 	avgSent := make([]float32, 0, 100)
 	avgAcked := make([]float32, 0, 100)
-
-	// Frame progression ticker.
-	frameTick := time.NewTicker(time.Second / FrameRate)
 
 	// Statistics printing ticker.
 	statTick := time.NewTicker(time.Second)
@@ -114,23 +124,32 @@ func loop(c *xudp.Connection, address net.Addr) {
 
 	for {
 		select {
-		case <-frameTick.C:
+		case <-statTick.C:
+			stat(c, &avgSent, &avgAcked)
+
+		default:
 			// Compute new delta time.
 			currTime = time.Now().UnixNano()
 			delta = float32(currTime-prevTime) / float32(time.Second)
 			prevTime = currTime
 
 			// Receive next message.
-			if address, ok = <-recv; !ok {
+			address, ok := <-recv
+
+			if !ok {
 				break
 			}
 
 			// Send a random payload back.
-			c.Send(address, make([]byte, rand.Int31n(PayloadSize)))
-			c.Update(delta)
+			err := c.Send(address, make([]byte, rand.Int31n(int32(c.PayloadSize()))))
 
-		case <-statTick.C:
-			stat(c, &avgSent, &avgAcked)
+			if err != nil {
+				return
+			}
+
+			// Update the connection. This ensures packet queues are
+			// appropriately ACK'ed or marked as lost. 
+			c.Update(delta)
 		}
 	}
 }

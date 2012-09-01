@@ -20,7 +20,8 @@ var (
 // A connection allows reliable, two-way communication with an end point.
 type Connection struct {
 	*Reliability
-	buf        []byte         // Temporary receive buffer.
+	inbuf      []byte         // Temporary receive buffer.
+	outbuf     []byte         // Temporary output buffer.
 	udp        net.PacketConn // Underlying socket.
 	protocolId uint32         // Protocol Id identifying our packets.
 	mtu        uint32         // maximum packet size.
@@ -58,7 +59,8 @@ func New(mtu, protocolId uint32) *Connection {
 	c.Reliability = NewReliability()
 	c.protocolId = protocolId
 	c.mtu = mtu
-	c.buf = make([]byte, mtu-UDPHeaderSize)
+	c.inbuf = make([]byte, mtu-UDPHeaderSize)
+	c.outbuf = make([]byte, mtu-UDPHeaderSize)
 	return c
 }
 
@@ -108,41 +110,43 @@ func (c *Connection) Send(addr net.Addr, payload []byte) (err error) {
 		return ErrPacketSize
 	}
 
+	b := c.outbuf
+	packetSize := XUDPHeaderSize + len(payload)
+
 	// Construct a new packet with the appropriate header fields.
-	p := make([]byte, len(payload)+XUDPHeaderSize)
 	n := c.protocolId
-	c.buf[0] = byte(n >> 24)
-	c.buf[1] = byte(n >> 16)
-	c.buf[2] = byte(n >> 8)
-	c.buf[3] = byte(n)
+	b[0] = byte(n >> 24)
+	b[1] = byte(n >> 16)
+	b[2] = byte(n >> 8)
+	b[3] = byte(n)
 
 	n = c.LocalSequence
-	c.buf[4] = byte(n >> 24)
-	c.buf[5] = byte(n >> 16)
-	c.buf[6] = byte(n >> 8)
-	c.buf[7] = byte(n)
+	b[4] = byte(n >> 24)
+	b[5] = byte(n >> 16)
+	b[6] = byte(n >> 8)
+	b[7] = byte(n)
 
 	n = c.RemoteSequence
-	c.buf[8] = byte(n >> 24)
-	c.buf[9] = byte(n >> 16)
-	c.buf[10] = byte(n >> 8)
-	c.buf[11] = byte(n)
+	b[8] = byte(n >> 24)
+	b[9] = byte(n >> 16)
+	b[10] = byte(n >> 8)
+	b[11] = byte(n)
 
 	n = c.AckVector()
-	c.buf[12] = byte(n >> 24)
-	c.buf[13] = byte(n >> 16)
-	c.buf[14] = byte(n >> 8)
-	c.buf[15] = byte(n)
+	b[12] = byte(n >> 24)
+	b[13] = byte(n >> 16)
+	b[14] = byte(n >> 8)
+	b[15] = byte(n)
 
-	copy(c.buf[XUDPHeaderSize:], payload)
+	copy(b[XUDPHeaderSize:], payload)
 
-	size, err := c.udp.WriteTo(p, addr)
+	size, err := c.udp.WriteTo(b[:packetSize], addr)
 
 	if err != nil {
 		return
 	}
 
-	if size < len(p) {
+	if size < packetSize {
 		return ErrShortWrite
 	}
 
@@ -156,7 +160,9 @@ func (c *Connection) Recv() (addr net.Addr, payload []byte, err error) {
 		return nil, nil, ErrConnectionClosed
 	}
 
-	size, addr, err := c.udp.ReadFrom(c.buf)
+	b := c.inbuf
+	size, addr, err := c.udp.ReadFrom(b)
+
 	if err != nil {
 		return
 	}
@@ -165,21 +171,21 @@ func (c *Connection) Recv() (addr net.Addr, payload []byte, err error) {
 		return // Not enough data.
 	}
 
-	proto := uint32(c.buf[0])<<24 | uint32(c.buf[1])<<16 |
-		uint32(c.buf[2])<<8 | uint32(c.buf[3])
+	proto := uint32(b[0])<<24 | uint32(b[1])<<16 |
+		uint32(b[2])<<8 | uint32(b[3])
 
 	if proto != c.protocolId {
 		return // Not meant for us.
 	}
 
-	sequence := uint32(c.buf[4])<<24 | uint32(c.buf[5])<<16 |
-		uint32(c.buf[6])<<8 | uint32(c.buf[7])
+	sequence := uint32(b[4])<<24 | uint32(b[5])<<16 |
+		uint32(b[6])<<8 | uint32(b[7])
 
-	ack := uint32(c.buf[8])<<24 | uint32(c.buf[9])<<16 |
-		uint32(c.buf[10])<<8 | uint32(c.buf[11])
+	ack := uint32(b[8])<<24 | uint32(b[9])<<16 |
+		uint32(b[10])<<8 | uint32(b[11])
 
-	vector := uint32(c.buf[12])<<24 | uint32(c.buf[13])<<16 |
-		uint32(c.buf[14])<<8 | uint32(c.buf[15])
+	vector := uint32(b[12])<<24 | uint32(b[13])<<16 |
+		uint32(b[14])<<8 | uint32(b[15])
 
 	c.PacketRecv(sequence, ack, vector, uint32(size))
 
@@ -189,6 +195,6 @@ func (c *Connection) Recv() (addr net.Addr, payload []byte, err error) {
 	}
 
 	payload = make([]byte, size)
-	copy(payload, c.buf[XUDPHeaderSize:XUDPHeaderSize+size])
+	copy(payload, b[XUDPHeaderSize:XUDPHeaderSize+size])
 	return
 }
