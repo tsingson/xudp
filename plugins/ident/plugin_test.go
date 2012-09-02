@@ -70,6 +70,6 @@ func initConn(t *testing.T, port int) *xudp.Connection {
 	return c
 }
 
-func recv(hash PeerHash, payload []byte) {
+func recv(hash PeerHash, addr net.Addr, payload []byte) {
 	//println(hash, string(payload))
 }

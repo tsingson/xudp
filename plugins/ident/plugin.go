@@ -9,7 +9,7 @@ import (
 	"net"
 )
 
-type PeerFunc func(hash PeerHash, payload []byte)
+type PeerFunc func(hash PeerHash, addr net.Addr, payload []byte)
 
 type Plugin struct {
 	id     []byte   // Connection's peer id.
@@ -56,7 +56,7 @@ func (p *Plugin) Recv(addr net.Addr, payload []byte, index int) error {
 		return nil
 	}
 
-	p.onRecv(NewPeerHash(addr, payload[:PeerHashSize]), payload[index:])
+	p.onRecv(NewPeerHash(addr, payload[:PeerHashSize]), addr, payload[index:])
 	return nil
 }
 
