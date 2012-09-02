@@ -1,7 +1,5 @@
 ## xudp
 
-**Note**: This is work in progress and needs more testing.
-
 XUDP offers an API for extended UDP networking.
 
 The basic `xudp.Connection` is nothing more than a wrapper around a
@@ -32,14 +30,15 @@ internals. It is therefore advised to give each connection their own,
 new instance of a given plugin.
 
 Individual plugins may expose additional fields and methods, useful for
-the host. These can be accessed by assrting the `xudp.Plugin` type to its
-concrete implementation type. Refer to each plugin's documentation for
-information on this.
+the host. These can be accessed by asserting the `xudp.Plugin` type to its
+concrete implementation. Refer to each plugin's documentation for
+information on what it has to offer.
 
 
 ### Usage
 
     go get github.com/jteeuwen/xudp
+    go get github.com/jteeuwen/xudp/plugin/<name>
 
 
 ### License
