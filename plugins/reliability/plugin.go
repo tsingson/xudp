@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type PacketFunc func(sequence uint32, payload []byte)
+type PacketFunc func(sequence uint32, addr net.Addr, payload []byte)
 
 type Plugin struct {
 	*Reliability
@@ -89,7 +89,7 @@ func (p *Plugin) Send(addr net.Addr, payload []byte, index int) error {
 	payload[11] = byte(n)
 
 	if p.onSent != nil {
-		p.onSent(p.LocalSequence, payload[index:])
+		p.onSent(p.LocalSequence, addr, payload[index:])
 	}
 
 	p.packetSent(uint32(len(payload[index:])))
@@ -109,7 +109,7 @@ func (p *Plugin) Recv(addr net.Addr, payload []byte, index int) error {
 	p.packetRecv(sequence, ack, vector, uint32(len(payload[index:])))
 
 	if p.onRecv != nil {
-		p.onRecv(sequence, payload[index:])
+		p.onRecv(sequence, addr, payload[index:])
 	}
 
 	return nil

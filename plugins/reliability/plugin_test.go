@@ -75,11 +75,11 @@ func initConn(t *testing.T, port int) *xudp.Connection {
 	return c
 }
 
-func sent(seq uint32, payload []byte) {
+func sent(seq uint32, addr net.Addr, payload []byte) {
 	//println("sent", seq)
 }
 
-func recv(seq uint32, payload []byte) {
+func recv(seq uint32, addr net.Addr, payload []byte) {
 	//println("recv", seq)
 }
 
