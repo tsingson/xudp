@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/jteeuwen/xudp"
+	"github.com/jteeuwen/xudp/plugins/reliability"
 	"math/rand"
 	"net"
 	"os"
@@ -30,12 +31,10 @@ import (
 	"time"
 )
 
-const (
-	MTU        = 1400
-	ProtocolId = 0xBADBEE
+var (
+	plugin *reliability.Plugin
+	cpu = flag.String("cpu", "", "File name to write CPU profile to.")
 )
-
-var cpu = flag.String("cpu", "", "File name to write CPU profile to.")
 
 func main() {
 	port, address := parseArgs()
@@ -88,7 +87,10 @@ func parseArgs() (int, net.Addr) {
 
 // initConn initializes our connection.
 func initConn(port int) *xudp.Connection {
-	conn := xudp.New(MTU, ProtocolId)
+	plugin = reliability.New(nil, nil, nil, nil, 30).(*reliability.Plugin)
+
+	conn := xudp.New(1400)
+	conn.Register(plugin)
 	err := conn.Open(port)
 
 	if err != nil {
@@ -102,9 +104,6 @@ func initConn(port int) *xudp.Connection {
 
 // The main 'game' loop.
 func loop(c *xudp.Connection, address net.Addr) {
-	var prevTime, currTime int64
-	var delta float32
-
 	// Track average sent/ACK'ed bandwidth
 	avgSent := make([]float32, 0, 100)
 	avgAcked := make([]float32, 0, 100)
@@ -125,14 +124,9 @@ func loop(c *xudp.Connection, address net.Addr) {
 	for {
 		select {
 		case <-statTick.C:
-			stat(c, &avgSent, &avgAcked)
+			stat(&avgSent, &avgAcked)
 
 		default:
-			// Compute new delta time.
-			currTime = time.Now().UnixNano()
-			delta = float32(currTime-prevTime) / float32(time.Second)
-			prevTime = currTime
-
 			// Receive next message.
 			address, ok := <-recv
 
@@ -146,10 +140,6 @@ func loop(c *xudp.Connection, address net.Addr) {
 			if err != nil {
 				return
 			}
-
-			// Update the connection. This ensures packet queues are
-			// appropriately ACK'ed or marked as lost. 
-			c.Update(delta)
 		}
 	}
 }
@@ -180,26 +170,26 @@ func readLoop(c *xudp.Connection) <-chan net.Addr {
 }
 
 // stat prints connection statistics.
-func stat(c *xudp.Connection, sent, acked *[]float32) {
-	rt := c.RTT
-	sp := c.SentPackets
-	ap := c.AckedPackets
-	lp := c.LostPackets
+func stat(sent, acked *[]float32) {
+	rt := plugin.RTT
+	sp := plugin.SentPackets
+	ap := plugin.AckedPackets
+	lp := plugin.LostPackets
 
 	// Update list for average sent bandwidth
 	if len(*sent) < cap(*sent) {
-		*sent = append(*sent, c.SentBandwidth)
+		*sent = append(*sent, plugin.SentBandwidth)
 	} else {
 		copy((*sent)[1:], *sent)
-		(*sent)[0] = c.SentBandwidth
+		(*sent)[0] = plugin.SentBandwidth
 	}
 
 	// Update list for average ACK'ed bandwidth
 	if len(*acked) < cap(*acked) {
-		*acked = append(*acked, c.AckedBandwidth)
+		*acked = append(*acked, plugin.AckedBandwidth)
 	} else {
 		copy((*acked)[1:], *acked)
-		(*acked)[0] = c.AckedBandwidth
+		(*acked)[0] = plugin.AckedBandwidth
 	}
 
 	var lr float32

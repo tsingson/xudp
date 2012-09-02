@@ -9,8 +9,10 @@ import (
 	"net"
 )
 
-// An endpoint identifies a peer. It contains their public address
-// along with a hash of their internal NAT address (IP + port).
+// Size of a single Peer id in bytes.
+const PeerHashSize = 32
+
+// PeerHash represents a unique peer.
 //
 // For UDP traffic this is the only reliable way to keep clients behind a
 // NAT apart from each other. We can not rely solely on their public
@@ -26,55 +28,37 @@ import (
 // is needed when two peers from the same local IP talk to each other.
 // This happens when two clients are run on the same computer. The only thing
 // setting them apart is their local port number.
-type Endpoint struct {
-	// Public IP and port for the peer. This is where we send our data
-	// and it may change from one request to the next.
-	Addr net.Addr
+//
+// The hash is implemented as follows:
+//
+//    private := SHA256(private_ip + private_port)
+//    hash := Base64( SHA256( public_ip + public_port + private ) )
+//
+// The private part is included in every outgoing packet.
+type PeerHash string
 
-	// An SHA256 hash of the peer's internal IP address and port.
-	// This is included in every packet from the given peer.
-	id PeerId
-}
-
-// NewEndpoint creates a new endpoint for the given public address and peer id.
-func NewEndpoint(addr net.Addr, id PeerId) *Endpoint {
-	e := new(Endpoint)
-	e.Addr = addr
-	e.id = id
-	return e
-}
-
-// String returns a base64 encoded SHA256 hash of the public IP address
-// combined with the endpoint Id. This can be used as a reliable
+// NewPeerHash returns a base64 encoded SHA256 hash of the public IP address
+// combined with the supplied id. This can be used as a reliable
 // identification key for a given peer.
-func (e *Endpoint) String() string {
-	if e.Addr == nil || e.id == nil {
+func NewPeerHash(addr net.Addr, id []byte) PeerHash {
+	if addr == nil || id == nil {
 		return ""
 	}
 
-	ua, ok := e.Addr.(*net.UDPAddr)
+	ua, ok := addr.(*net.UDPAddr)
 
 	if !ok {
-		return ""
+		return PeerHash("")
 	}
 
 	hm := sha256.New()
 	hm.Write(ua.IP.To16())
-	hm.Write(e.id)
+	hm.Write(id)
 
-	return base64.StdEncoding.EncodeToString(hm.Sum(nil))
+	return PeerHash(base64.StdEncoding.EncodeToString(hm.Sum(nil)))
 }
 
-// Equals returns true if the two endpoints represent the same peer.
-// The comparison is done in constant time.
-func (e *Endpoint) Equals(dest *Endpoint) bool {
-	return compareHash(
-		[]byte(e.String()),
-		[]byte(dest.String()),
-	)
-}
-
-// compareHash compares two hashes and returns true if we consider them equal.
+// Equals returns true if the two hashes represent the same peer.
 //
 // A constant time comparison is used to prevent timing attacks from
 // being performed. With a normal bytes.Equal(a, b) comparison, an attacker can 
@@ -82,7 +66,7 @@ func (e *Endpoint) Equals(dest *Endpoint) bool {
 // to return, the more of the hash he knows will be correct. A constant time
 // comparison always runs in the same amount of time, regardless of the
 // hash contents; thus eliminating the timing attack vector.
-func compareHash(a, b []byte) bool {
+func (a PeerHash) Equals(b PeerHash) bool {
 	if len(a) != len(b) {
 		return false
 	}

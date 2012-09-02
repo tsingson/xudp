@@ -1,9 +1,10 @@
 // This file is subject to a 1-clause BSD license.
 // Its contents can be found in the enclosed LICENSE file.
 
-package xudp
+package protocol
 
 import (
+	"github.com/jteeuwen/xudp"
 	"net"
 	"testing"
 	"time"
@@ -12,13 +13,13 @@ import (
 var Payload = []byte("Hello, world!")
 
 func TestConn(t *testing.T) {
-	ca := initConn(t, 12345)
-	cb := initConn(t, 12346)
+	ca := initConn(t, 10001)
+	cb := initConn(t, 10002)
 
 	defer ca.Close()
 	defer cb.Close()
 
-	ca.Send(&net.UDPAddr{Port: 12346}, Payload)
+	ca.Send(&net.UDPAddr{Port: 10002}, Payload)
 
 	go loop(t, ca)
 	go loop(t, cb)
@@ -26,7 +27,7 @@ func TestConn(t *testing.T) {
 	<-time.After(time.Second / 2)
 }
 
-func loop(t *testing.T, c *Connection) {
+func loop(t *testing.T, c *xudp.Connection) {
 	for {
 		addr, payload, err := c.Recv()
 
@@ -56,8 +57,10 @@ func loop(t *testing.T, c *Connection) {
 	}
 }
 
-func initConn(t *testing.T, port int) *Connection {
-	c := New(1400)
+func initConn(t *testing.T, port int) *xudp.Connection {
+	c := xudp.New(1400)
+	c.Register(New(0xBADBEEF))
+
 	err := c.Open(port)
 
 	if err != nil {

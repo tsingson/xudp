@@ -4,36 +4,36 @@
 /*
 XUDP offers an API for extended UDP networking.
 
-The point of this API is to offer persistent, reliable two-way communication
-without the overhead imposed by the TCP protocol. This makes it particularly
-useful for environments like multiplayer video games, where low latency and
-fast transfer of time sensitive data is of paramount importance.
+The basic `xudp.Connection` is nothing more than a wrapper around a
+standard go UDP connection. Any useful features should be loaded into
+the connection through any of the available plugins, or by writing your
+own plugin.
 
-What we support:
+A plugin has a hook into the `Send` and `Recv` methods of the connection.
+Each send/received packet is passed through every registered plugin, which
+can then perform any necessary operations. For most plugins, this means
+appending certain plugin specific metadata to the packet payload in the form
+of one or more header fields.
 
-	* IPv4 and IPv6 support.
-	* Highly redundant reception acknowledgement by piggybacking multiple
-	  ACKs on regular data packets.
-	* Exposes event handlers for cases where indivual packets are lost or ACK'ed.
-	  This allows the host application to implement resending of lost packets.
-	  Our library does not do this for performance reasons. To be more
-	  precise: when TCP detects a packet loss, it stops the sending of
-	  everything else until the lost packet has been re-sent and ACK'ed by
-	  the other end. For applications where time-sensitive data should
-	  go through as fast as possible, this is very much not what we want.
-	  We therefor leave it to the host application to determine
-	  what to do when packets are lost. It can resend packets selectively
-	  while not preventing the reception of remaining data.
+Writing your own plugin is simple. It need only implement the `xudp.Plugin`
+interface. It can then be used by calling `Connection.Register()` with an
+instance of this plugin. From this point on, the connection will
+automatically use your plugin and no other code is necessary to make
+it all work.
 
+During `Send` or `Recv` calls, each plugin is passed the sender/receiver's
+address and the packet payload, starting at the byte offset for that specific
+plugin. It can then access the first byte of data simply at `payload[0]`.
 
-What do we not support:
+While some plugins can be re-used by multiple connections, it is not
+recommended to do so. Some plugins retain internal state on a per-connection
+basis. Re-using the same instance in other connections will mess up the
+internals. It is therefore advised to give each connection their own,
+new instance of a given plugin.
 
-	* This package explicitely does **not** guarantee in-order reception
-	  of packets, for the same reason described in the feature point on
-	  event handlers.
-	* Packet fragmentation, encryption or compression. These are all high
-	  level abstractions that are best left to the host application, because
-	  networking requirements are very different from one case to the next.
-
+Individual plugins may expose additional fields and methods, useful for
+the host. These can be accessed by assrting the `xudp.Plugin` type to its
+concrete implementation type. Refer to each plugin's documentation for
+information on this.
 */
 package xudp

@@ -1,7 +1,7 @@
 // This file is subject to a 1-clause BSD license.
 // Its contents can be found in the enclosed LICENSE file.
 
-package xudp
+package reliability
 
 // Maximum packet sequence value.	
 const MaxSequence = 1<<32 - 1
@@ -21,28 +21,30 @@ func bitIndex(sequence, ack uint32) uint32 {
 	return ack - 1 - sequence
 }
 
+type SequenceFunc func(sequence uint32)
+
 // Reliability implements the algorithms needed to make a reliable connection
 // reliable. This means it manages sent, received, pending ACKs and ACK'ed
 // packet queues. In addtion, it tracks bandwidth use and round trip timing.
 type Reliability struct {
-	OnAcked         PacketHandler // Notify the host when a specific packet is ACK'ed.
-	OnLost          PacketHandler // Notify the host when a specific packet is lost.
-	sentQueue       packetQueue   // Sent packets used to calculate sent bandwidth.
-	pendingAckQueue packetQueue   // Sent packets which have not been acked yet.
-	recvQueue       packetQueue   // Received packets used to determine acks to send.
-	ackedQueue      packetQueue   // ACK'ed packets.
-	SentBytes       uint64        // Number of bytes sent.
-	RecvBytes       uint64        // Number of bytes received.
-	SentPackets     uint32        // Number of packets sent.
-	RecvPackets     uint32        // Number of packets received.
-	LostPackets     uint32        // Number of packets lost.
-	AckedPackets    uint32        // Number of packets ACK'ed.
-	LocalSequence   uint32        // Local sequence number for most recently sent packet.
-	RemoteSequence  uint32        // Remote sequence number for most recently received packet.
-	SentBandwidth   float32       // Approximate sent bandwidth over the last second.
-	AckedBandwidth  float32       // Approximate ACK'ed bandwidth over the last second.
-	RTT             float32       // Estimated round trip time.
-	RTTMax          float32       // Maximum expected round trip time.
+	onAcked         SequenceFunc // Notify the host when a specific packet is ACK'ed.
+	onLost          SequenceFunc // Notify the host when a specific packet is lost.
+	sentQueue       packetQueue  // Sent packets used to calculate sent bandwidth.
+	pendingAckQueue packetQueue  // Sent packets which have not been acked yet.
+	recvQueue       packetQueue  // Received packets used to determine acks to send.
+	ackedQueue      packetQueue  // ACK'ed packets.
+	SentBytes       uint64       // Number of bytes sent.
+	RecvBytes       uint64       // Number of bytes received.
+	SentPackets     uint32       // Number of packets sent.
+	RecvPackets     uint32       // Number of packets received.
+	LostPackets     uint32       // Number of packets lost.
+	AckedPackets    uint32       // Number of packets ACK'ed.
+	LocalSequence   uint32       // Local sequence number for most recently sent packet.
+	RemoteSequence  uint32       // Remote sequence number for most recently received packet.
+	SentBandwidth   float32      // Approximate sent bandwidth over the last second.
+	AckedBandwidth  float32      // Approximate ACK'ed bandwidth over the last second.
+	RTT             float32      // Estimated round trip time.
+	RTTMax          float32      // Maximum expected round trip time.
 }
 
 // NewReliability creates a new reliability instance.
@@ -52,8 +54,8 @@ func NewReliability() *Reliability {
 	return r
 }
 
-// PacketSent is called whenever a new packet is sent.
-func (r *Reliability) PacketSent(size uint32) {
+// packetSent is called whenever a new packet is sent.
+func (r *Reliability) packetSent(size uint32) {
 	pd := &packetData{
 		sequence: r.LocalSequence,
 		size:     size,
@@ -66,8 +68,8 @@ func (r *Reliability) PacketSent(size uint32) {
 	r.SentBytes += uint64(size)
 }
 
-// PacketRecv is called whenever a new packet is received.
-func (r *Reliability) PacketRecv(sequence, ack, vector, size uint32) {
+// packetRecv is called whenever a new packet is received.
+func (r *Reliability) packetRecv(sequence, ack, vector, size uint32) {
 	defer r.processAck(ack, vector)
 
 	r.RecvPackets++
@@ -87,9 +89,9 @@ func (r *Reliability) PacketRecv(sequence, ack, vector, size uint32) {
 	}
 }
 
-// AckVector generates the ACK vector which should be included in an
+// ackVector generates the ACK vector which should be included in an
 // outgoing packet header.
-func (r *Reliability) AckVector() uint32 {
+func (r *Reliability) ackVector() uint32 {
 	var vector, bit uint32
 
 	ack := r.RemoteSequence
@@ -109,8 +111,8 @@ func (r *Reliability) AckVector() uint32 {
 	return vector
 }
 
-// Update takes a frame time delta and updates packet timeouts with it.
-func (r *Reliability) Update(delta float32) {
+// update takes a frame time delta and updates packet timeouts with it.
+func (r *Reliability) update(delta float32) {
 	r.advanceQueueTime(delta)
 	r.updateQueues()
 	r.updateStats()
@@ -170,8 +172,8 @@ func (r *Reliability) processAck(ack, vector uint32) {
 		r.pendingAckQueue.RemoveAt(i)
 		i--
 
-		if r.OnAcked != nil {
-			r.OnAcked(pd.sequence)
+		if r.onAcked != nil {
+			r.onAcked(pd.sequence)
 		}
 	}
 }
@@ -227,8 +229,8 @@ func (r *Reliability) updateQueues() {
 	}
 
 	for len(r.pendingAckQueue) > 0 && r.pendingAckQueue[0].time > threshold {
-		if r.OnLost != nil {
-			r.OnLost(r.pendingAckQueue[0].sequence)
+		if r.onLost != nil {
+			r.onLost(r.pendingAckQueue[0].sequence)
 		}
 
 		r.pendingAckQueue = r.pendingAckQueue[1:]
@@ -243,25 +245,25 @@ func (r *Reliability) updateQueues() {
 
 // updateStats updates bandwidth and timing statistics.
 func (r *Reliability) updateStats() {
-	var ackedBytesPerSec float32
-	var sentBytesPerSec float32
+	var ackedBytes float32
+	var sentBytes float32
 	var pd *packetData
 
 	rm := r.RTTMax
 
 	for _, pd = range r.sentQueue {
-		sentBytesPerSec += float32(pd.size)
+		sentBytes += float32(pd.size)
 	}
 
 	for _, pd = range r.ackedQueue {
 		if pd.time >= rm {
-			ackedBytesPerSec += float32(pd.size)
+			ackedBytes += float32(pd.size)
 		}
 	}
 
-	sentBytesPerSec /= rm
-	ackedBytesPerSec /= rm
+	sentBytes /= rm
+	ackedBytes /= rm
 
-	r.SentBandwidth = sentBytesPerSec * (8 / 1000.0)
-	r.AckedBandwidth = ackedBytesPerSec * (8 / 1000.0)
+	r.SentBandwidth = sentBytes * (8 / 1000.0)
+	r.AckedBandwidth = ackedBytes * (8 / 1000.0)
 }

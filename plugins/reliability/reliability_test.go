@@ -1,7 +1,7 @@
 // This file is subject to a 1-clause BSD license.
 // Its contents can be found in the enclosed LICENSE file.
 
-package xudp
+package reliability
 
 import (
 	"testing"
@@ -44,7 +44,7 @@ func TestAckVector(t *testing.T) {
 
 	for _, bt := range tests {
 		r.RemoteSequence = bt[0]
-		vector := r.AckVector()
+		vector := r.ackVector()
 
 		if vector != bt[1] {
 			t.Errorf("Ack %d. Want 0x%08x, Got 0x%08x", bt[0], bt[1], vector)
@@ -72,7 +72,7 @@ func TestAckVectorWrapped(t *testing.T) {
 
 	for _, bt := range tests {
 		r.RemoteSequence = bt[0]
-		vector := r.AckVector()
+		vector := r.ackVector()
 
 		if vector != bt[1] {
 			t.Errorf("Ack %d. Want 0x%08x, Got 0x%08x", bt[0], bt[1], vector)
