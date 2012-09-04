@@ -35,6 +35,22 @@ concrete implementation. Refer to each plugin's documentation for
 information on what it has to offer.
 
 
+### NAT Punch-through
+
+This package does not handle NAT punch-through.
+
+There are existing protocols in around for this purpose.
+Apart from that, it involves a full server implementation which
+handles NAT identification for connecting peers.
+
+For information on Session Traversal Utilities for NAT (STUN),
+refer to [rfc5389](http://tools.ietf.org/html/rfc5389).
+
+Many UDP based programs out there either use STUN directly, or have
+a custom implementation of the protocol specific to their application
+needs.
+
+
 ### Usage
 
     go get github.com/jteeuwen/xudp
