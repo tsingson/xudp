@@ -36,10 +36,8 @@ var (
 // does more than you need it to do.
 type Connection struct {
 	PluginList
-	inbuf  []byte         // Temporary receive buffer.
-	outbuf []byte         // Temporary output buffer.
-	udp    net.PacketConn // Underlying socket.
-	mtu    uint32         // maximum packet size.
+	udp net.PacketConn // Underlying socket.
+	mtu uint32         // maximum packet size.
 }
 
 // New creates a new connection.
@@ -62,8 +60,6 @@ type Connection struct {
 func New(mtu uint32) *Connection {
 	c := new(Connection)
 	c.mtu = mtu
-	c.inbuf = make([]byte, mtu-UDPHeaderSize)
-	c.outbuf = make([]byte, mtu-UDPHeaderSize)
 	return c
 }
 
@@ -138,7 +134,7 @@ func (c *Connection) Send(addr net.Addr, payload []byte) (err error) {
 
 	var index int
 
-	b := c.outbuf
+	b := make([]byte, c.mtu-UDPHeaderSize)
 	header := c.PluginList.PayloadSize()
 	total := header + len(payload)
 
@@ -172,8 +168,8 @@ func (c *Connection) Recv() (addr net.Addr, payload []byte, err error) {
 		return nil, nil, ErrConnectionectionClosed
 	}
 
-	b := c.inbuf
-	size, addr, err := c.udp.ReadFrom(b)
+	b := make([]byte, c.mtu-UDPHeaderSize)
+	size, addr, err := c.udp.ReadFrom(b[:])
 
 	if err != nil {
 		return
