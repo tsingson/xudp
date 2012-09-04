@@ -39,7 +39,7 @@ information on this.
 Example for setup and use of a connection:
 
 	conn := xudp.New(MTU)
-	conn.Register(protocol.New(ProtocolId))
+	conn.Register(protocol.New(...))
 	...
 
 Open the connection for incoming data:

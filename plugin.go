@@ -18,7 +18,7 @@ type Plugin interface {
 	// Called when a new packet is being sent.
 	//
 	// It accepts the target address, the full packet which includes the
-	// plugin/header data and the payload and the index at which the actual
+	// plugin/header data with payload and the index at which the actual
 	// payload starts.
 	Send(net.Addr, []byte, int) error
 
