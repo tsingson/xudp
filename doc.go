@@ -35,5 +35,25 @@ Individual plugins may expose additional fields and methods, useful for
 the host. These can be accessed by assrting the `xudp.Plugin` type to its
 concrete implementation type. Refer to each plugin's documentation for
 information on this.
+
+Example for setup and use of a connection:
+
+	conn := xudp.New(MTU)
+	conn.Register(protocol.New(ProtocolId))
+	...
+
+Open the connection for incoming data:
+
+	err := conn.Open(port)
+	...
+	defer conn.Close()
+
+Sending & receiving data:
+
+	for {
+		addr, payload, err := conn.Recv()
+		...
+		err := conn.Send(addr, payload)
+	}
 */
 package xudp
