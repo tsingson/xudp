@@ -39,16 +39,25 @@ information on what it has to offer.
 
 This package does not handle NAT punch-through.
 
-There are existing protocols in around for this purpose.
-Apart from that, it involves a full server implementation which
-handles NAT identification for connecting peers.
+The `ident` plugin is not meant for this purpose. It merely identifies
+multiple clients from behind the same NAT through their unique Peer Id.
+It does not care whether or not a peer is actually behind a NAT. Nor does
+identify the type of NAT.
 
-For information on Session Traversal Utilities for NAT (STUN),
-refer to [rfc5389](http://tools.ietf.org/html/rfc5389).
+There are existing protocols around for this purpose (e.g.: [STUN][stun]).
+Apart from that, it involves a full server implementation which handles NAT
+identification for connecting peers. It can not be implemented merely as
+a plugin for the `xudp.Connection` type.
 
-Many UDP based programs out there either use STUN directly, or have
+Many UDP based programs out there either use [STUN][stun] directly, or have
 a custom implementation of the protocol specific to their application
 needs.
+
+It should be noted that NAT punch-through is only necessary when
+any of the endpoints use IPv4. If the entire stack uses IPv6, NAT becomes
+a non-issue and no special punch-through mechanisms have to be employed.
+
+[stun]: http://tools.ietf.org/html/rfc5389
 
 
 ### Usage
